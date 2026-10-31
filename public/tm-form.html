@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Empire Electric — Time &amp; Material Form</title>
+<!-- html2pdf.js: renders the form as a PDF in-browser -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root {
+    --atw-green: #4AA04A;
+    --atw-green-dark: #2E7D32;
+    --atw-black: #1C1B17;
+    --atw-gray: #555;
+    --atw-line: #d9d9d9;
+    --atw-bg: #f5f5f5;
+    --atw-soft: #fafafa;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--atw-black);
+    background: var(--atw-bg);
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap {
+    max-width: 900px;
+    margin: 16px auto;
+    padding: 0 12px 80px;
+  }
+
+  /* ============ TOP CONTROL BAR (not in PDF) ============ */
+  .controls {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--atw-black);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 14px rgba(0,0,0,.12);
+  }
+  .controls .left { font-weight: 700; letter-spacing: .5px; }
+  .controls .right { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    border: 0;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform .05s ease, opacity .15s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--atw-green); color: #111; }
+  .btn-primary:hover { background: var(--atw-green-dark); color: #fff; }
+  .btn-ghost { background: transparent; color: #fff; border: 1px solid #555; }
+  .btn-ghost:hover { background: #222; }
+  .btn-danger { background: #2a2a2a; color: #fff; border: 1px solid #444; }
+  .btn-danger:hover { background: #3b1d1d; border-color: #6b2a2a; }
+
+  /* ============ THE PRINTABLE FORM ============ */
+  .form {
+    background: #fff;
+    border-radius: 10px;
+    padding: 18px 32px 32px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.06);
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 3px solid var(--atw-green);
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+    gap: 16px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-mark {
+    width: auto;
+    height: 180px;
+    max-width: 560px;
+    flex-shrink: 0;
+    object-fit: contain;
+  }
+  /* brand-text block kept hidden by default — the real logo PNG
+     already contains the "EMPIRE ELECTRIC" wordmark and tagline. */
+  .brand-text { display: none; }
+  .doc-title {
+    text-align: right;
+    text-transform: uppercase;
+    font-weight: 900;
+    font-size: 22px;
+    line-height: 1.1;
+    color: var(--atw-black);
+  }
+  .doc-title small {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: var(--atw-gray);
+    margin-top: 4px;
+  }
+
+  /* META ROWS */
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 24px;
+    margin-bottom: 18px;
+  }
+  .meta-block {
+    background: var(--atw-soft);
+    border-left: 3px solid var(--atw-green);
+    padding: 10px 14px;
+    border-radius: 4px;
+  }
+  .meta-block h3 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--atw-gray);
+  }
+  .meta-block .line { font-size: 13px; line-height: 1.5; }
+
+  /* SECTIONS */
+  .section { margin-top: 18px; }
+  .section h2 {
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #fff;
+    background: var(--atw-black);
+    padding: 8px 12px;
+    margin: 0 0 10px;
+    border-left: 6px solid var(--atw-green);
+    border-radius: 3px;
+  }
+
+  /* GENERIC FIELDS */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px 14px; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px 14px; }
+  .field { display: flex; flex-direction: column; }
+  .field label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--atw-gray);
+    margin-bottom: 3px;
+    font-weight: 600;
+  }
+  .field input,
+  .field textarea,
+  .field select {
+    font: inherit;
+    font-size: 14px;
+    padding: 8px 10px;
+    border: 1px solid var(--atw-line);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--atw-black);
+    width: 100%;
+  }
+  .field input:focus,
+  .field textarea:focus,
+  .field select:focus {
+    outline: none;
+    border-color: var(--atw-green);
+    box-shadow: 0 0 0 3px rgba(74,160,74,.18);
+  }
+  .field textarea { resize: vertical; min-height: 70px; font-size: 12px; }
+
+  /* TABLES (Labor & Materials) */
+  table.lt {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 4px;
+  }
+  table.lt th {
+    background: #f0f0f0;
+    color: var(--atw-black);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 8px 8px;
+    text-align: left;
+    border-bottom: 2px solid var(--atw-green);
+  }
+  table.lt td {
+    padding: 6px 6px;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--atw-line);
+  }
+  table.lt input,
+  table.lt select {
+    width: 100%;
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 6px 6px;
+    font: inherit;
+    font-size: 14px;
+    border-radius: 4px;
+  }
+  table.lt input:focus,
+  table.lt select:focus {
+    outline: none;
+    background: #fff;
+    border-color: var(--atw-green);
+    box-shadow: 0 0 0 2px rgba(74,160,74,.18);
+  }
+  .num { text-align: right; }
+  .row-total {
+    font-weight: 700;
+    text-align: right;
+    color: var(--atw-black);
+    white-space: nowrap;
+    padding-right: 8px;
+  }
+  .remove-btn {
+    background: transparent;
+    border: 0;
+    color: #b03030;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    line-height: 1;
+  }
+  .remove-btn:hover { background: #fce8e8; }
+  .add-row-btn {
+    margin-top: 8px;
+    background: transparent;
+    border: 1px dashed var(--atw-green);
+    color: var(--atw-green-dark);
+    font-weight: 700;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .add-row-btn:hover { background: rgba(74,160,74,.08); }
+
+  /* MATERIAL PHOTO */
+  .photo-cell { width: 72px; }
+  .photo-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border: 1px dashed var(--atw-line);
+    border-radius: 6px;
+    cursor: pointer;
+    overflow: hidden;
+    background: #fafafa;
+    color: var(--atw-gray);
+    font-size: 11px;
+    text-align: center;
+  }
+  .photo-trigger img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-trigger input { display: none; }
+
+  /* TOTALS */
+  .totals {
+    margin-top: 14px;
+    margin-left: auto;
+    width: 360px;
+    max-width: 100%;
+    background: var(--atw-soft);
+    border: 1px solid var(--atw-line);
+    border-radius: 8px;
+    padding: 12px 16px;
+  }
+  .totals .row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 14px;
+  }
+  .totals .row.sub { color: var(--atw-gray); font-size: 13px; }
+  .totals .row.grand {
+    border-top: 2px solid var(--atw-green);
+    margin-top: 6px;
+    padding-top: 10px;
+    font-weight: 900;
+    font-size: 18px;
+  }
+  .tax-input {
+    width: 64px;
+    text-align: right;
+    border: 1px solid var(--atw-line);
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 12px;
+  }
+
+  /* SIGNATURE */
+  .sig-wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 12px;
+  }
+  .sig-box {
+    border: 1px solid var(--atw-line);
+    border-radius: 6px;
+    background: #fff;
+    overflow: hidden;
+  }
+  .sig-box .label {
+    background: #f0f0f0;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--atw-gray);
+    padding: 6px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .sig-box .label button {
+    background: transparent;
+    border: 0;
+    color: #b03030;
+    font-size: 11px;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  .sig-canvas {
+    display: block;
+    width: 100%;
+    height: 110px;
+    background: #fff;
+    touch-action: none;
+  }
+
+  /* FOOTER */
+  .foot {
+    margin-top: 24px;
+    padding-top: 14px;
+    border-top: 1px solid var(--atw-line);
+    font-size: 12.5px;
+    color: var(--atw-gray);
+    line-height: 1.55;
+  }
+  .foot strong { color: var(--atw-black); }
+  .foot .surcharge {
+    margin-top: 8px;
+    color: var(--atw-black);
+    font-weight: 600;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 720px) {
+    .form { padding: 18px 14px 28px; }
+    .header { flex-direction: column; align-items: flex-start; }
+    .doc-title { text-align: left; }
+    .meta-grid { grid-template-columns: 1fr; }
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .totals { width: 100%; }
+    .sig-wrap { grid-template-columns: 1fr; }
+    table.lt th:nth-child(1),
+    table.lt td:nth-child(1) { display: none; } /* hide row # on small screens */
+  }
+
+  /* PDF MODE — hide controls and adjust during render */
+  .pdf-mode { background: #fff !important; }
+  .pdf-mode .wrap { width: 900px !important; max-width: 900px !important; padding: 0 !important; margin: 0 !important; }
+  .pdf-mode #formRoot { width: 900px !important; max-width: 900px !important; padding: 24px 28px !important; box-shadow: none !important; border-radius: 0 !important; }
+  /* Cancel the mobile @media collapse — force desktop layout regardless of device */
+  .pdf-mode .header { flex-direction: row !important; align-items: center !important; }
+  .pdf-mode .doc-title { text-align: right !important; }
+  .pdf-mode .meta-grid { grid-template-columns: 1fr 1fr !important; }
+  .pdf-mode .grid-2 { grid-template-columns: 1fr 1fr !important; }
+  .pdf-mode .grid-3 { grid-template-columns: 1fr 1fr 1fr !important; }
+  .pdf-mode .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr !important; }
+  .pdf-mode .totals { width: 360px !important; margin-left: auto !important; }
+  .pdf-mode .sig-wrap { grid-template-columns: 1fr 1fr !important; }
+  .pdf-mode table.lt th:nth-child(1),
+  .pdf-mode table.lt td:nth-child(1) { display: table-cell !important; }
+  /* Avoid awkward page breaks */
+  .pdf-mode .section,
+  .pdf-mode .meta-block,
+  .pdf-mode .totals,
+  .pdf-mode .sig-wrap,
+  .pdf-mode .foot,
+  .pdf-mode table.lt tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+  .pdf-mode .header { page-break-after: avoid !important; }
+  .pdf-mode h2 { page-break-after: avoid !important; }
+
+  .pdf-mode .controls { display: none !important; position: static !important; }
+  .pdf-mode .toast { display: none !important; }
+  .pdf-mode .add-row-btn { display: none !important; }
+  .pdf-mode .remove-btn { display: none !important; }
+  .pdf-mode .photo-trigger { border: none; background: transparent; }
+  .pdf-mode .field textarea {
+    height: auto !important;
+    overflow: visible !important;
+    resize: none !important;
+  }
+  .pdf-mode .field input,
+  .pdf-mode .field select,
+  .pdf-mode .field textarea,
+  .pdf-mode table.lt input,
+  .pdf-mode table.lt select {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding-left: 0 !important;
+  }
+  .pdf-mode .form { box-shadow: none; }
+  .pdf-mode .wrap { padding: 0; margin: 0; max-width: none; }
+
+  /* TOAST */
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--atw-black); color: #fff; padding: 10px 16px;
+    border-radius: 8px; font-size: 14px; opacity: 0; pointer-events: none;
+    transition: opacity .25s ease; z-index: 100;
+    box-shadow: 0 4px 16px rgba(0,0,0,.2);
+  }
+  .toast.show { opacity: 1; }
+  .toast .ok { color: var(--atw-green); font-weight: 700; }
+
+
+  
+  /* SITE PHOTOS — small thumbnails on screen, wrap to fit */
+  .photo-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .photo-card {
+    width: 130px;
+    min-width: 130px;
+    max-width: 130px;
+    border: 1px solid var(--atw-line);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--atw-soft);
+    position: relative;
+  }
+  .photo-card img {
+    display: block;
+    width: 130px;
+    height: 100px;
+    object-fit: cover;
+    background: #fff;
+  }
+  .photo-card .cap-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 0;
+    border-top: 1px solid var(--atw-line);
+    padding: 5px 7px;
+    font: inherit;
+    font-size: 11px;
+    background: #fff;
+    color: var(--atw-black);
+    outline: none;
+  }
+  .photo-card .cap-input:focus { background: rgba(74,160,74,.08); }
+  .photo-card .photo-remove {
+    position: absolute;
+    top: 3px; right: 3px;
+    background: rgba(0,0,0,.65);
+    color: #fff;
+    border: 0;
+    border-radius: 4px;
+    width: 22px; height: 22px;
+    font-size: 13px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .photo-card .photo-remove:hover { background: #b03030; }
+
+  /* ============================================================
+     PRINT STYLESHEET — used by window.print() / Save as PDF
+     The browser handles all rendering natively, so this works
+     reliably across desktop and mobile (iOS Safari, Android, etc.)
+     ============================================================ */
+  @media print {
+    @page {
+      size: letter portrait;
+      margin: 0.4in 0.5in 0.5in 0.5in;
+    }
+    /* Force colors to print accurately (logos, accent bars, headers) */
+    *, *::before, *::after {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    /* Reset the page chrome */
+    html, body {
+      background: #fff !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    .wrap {
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    .form {
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      padding: 0 !important;
+      background: #fff !important;
+    }
+    /* Hide non-printable UI */
+    .controls, .toast, .add-row-btn, .remove-btn,
+    #logoInput, #saveCopyBtn, #logoBtn,
+    #clearSigBtn, .sig-box .label button {
+      display: none !important;
+    }
+    /* Force desktop layout, regardless of viewport */
+    .header { flex-direction: row !important; align-items: center !important; gap: 16px !important; }
+    .doc-title { text-align: right !important; }
+    .meta-grid { grid-template-columns: 1fr 1fr !important; gap: 10px 24px !important; }
+    .grid-2 { grid-template-columns: 1fr 1fr !important; gap: 8px 14px !important; }
+    .grid-3 { grid-template-columns: 1fr 1fr 1fr !important; gap: 8px 14px !important; }
+    .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr !important; gap: 8px 14px !important; }
+    .totals { width: 360px !important; max-width: 360px !important; margin-left: auto !important; }
+    .sig-wrap { grid-template-columns: 1fr 1fr !important; }
+    /* Hide tiny row-# in tables on screen, BUT show in print */
+    table.lt th:nth-child(1),
+    table.lt td:nth-child(1) { display: table-cell !important; }
+    /* Inputs render as flat text — no borders, no boxes */
+    .field input, .field select, .field textarea,
+    table.lt input, table.lt select,
+    .tax-input {
+      border: none !important;
+      background: transparent !important;
+      padding: 2px 0 !important;
+      box-shadow: none !important;
+      color: #000 !important;
+      -webkit-appearance: none !important;
+      appearance: none !important;
+    }
+    /* Print twins inherit the smaller narrative font */
+    .print-twin { font-size: 12px !important; line-height: 1.4 !important; }
+    /* Textareas: show all content, no scroll, no resize handle */
+    textarea {
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+      resize: none !important;
+      white-space: pre-wrap !important;
+    }
+    /* Field labels stay visible above the value */
+    .field label { font-size: 9px !important; }
+    /* Section headers retain their black/green styling */
+    .section h2 {
+      color: #fff !important;
+      background: #111 !important;
+      border-left: 6px solid #4AA04A !important;
+    }
+    /* Avoid awkward page breaks */
+    /* Keep small logical units together but allow long sections (esp. Work Narrative) to flow across page breaks naturally */
+    .meta-block, .totals, .sig-wrap, .foot,
+    table.lt tr, .photo-card {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    h2, .header { page-break-after: avoid !important; }
+    /* In print: revert to 3-column grid with larger photos */
+    .photo-grid { display: grid !important; grid-template-columns: 1fr 1fr 1fr !important; gap: 8px !important; }
+    .photo-card { width: auto !important; min-width: 0 !important; max-width: none !important; }
+    .photo-card img { width: 100% !important; height: 180px !important; max-width: 100% !important; object-fit: cover !important; }
+    /* Drop the file-trigger styling for photos in materials */
+    .photo-trigger { border: none !important; background: transparent !important; }
+    .photo-trigger .ph-placeholder { display: none !important; }
+  }
+
+  </style>
+</head>
+<body>
+
+<div class="wrap" id="wrap">
+
+  <!-- CONTROL BAR (excluded from PDF) -->
+  <div class="controls" id="controls">
+    <div class="left">
+      Empire Electric — T&amp;M Form
+      <div class="print-tip" id="printTip" style="font-size:11px;font-weight:400;opacity:.7;margin-top:2px;line-height:1.3;">
+        Tip: in the Print dialog, uncheck <em>Headers and footers</em> for a clean PDF.
+      </div>
+    </div>
+    <div class="right">
+      <button class="btn btn-ghost" id="logoBtn" type="button" title="Replace logo with your file (PNG/JPG/SVG)">Replace Logo</button>
+      <input type="file" id="logoInput" accept="image/*" style="display:none;">
+      <button class="btn btn-ghost" id="saveCopyBtn" type="button" title="Save a copy of this form with your logo &amp; current settings baked in">Save Branded Copy</button>
+      <button class="btn btn-ghost" id="resetBtn" type="button">Reset</button>
+      <button class="btn btn-ghost" id="emailBtn" type="button" title="Open email with customer pre-filled">Email Customer</button>
+      <button class="btn btn-primary" id="generateBtn" type="button">Save / Print PDF</button>
+    </div>
+  </div>
+
+  <!-- ==================== FORM ==================== -->
+  <div class="form" id="formRoot">
+
+    <!-- HEADER -->
+    <div class="header">
+      <div class="brand" id="brandSlot">
+        <!-- LOGO SLOT — replaced by user-uploaded image when "Replace Logo" is clicked -->
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4NjQiIGhlaWdodD0iMjIwIiB2aWV3Qm94PSIwIDAgODY0IDIyMCI+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTAsMTApIHNjYWxlKDEuMCkiPgogIDxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiByeD0iMzQiIGZpbGw9IiMxQzFCMTciIGZpbGwtb3BhY2l0eT0iMSIvPgogIDxyZWN0IHg9IjQ2IiB5PSI0NCIgd2lkdGg9IjI2IiBoZWlnaHQ9IjExMiIgZmlsbD0iI0ZGRkZGRiIvPgogIDxyZWN0IHg9IjQ2IiB5PSI0NCIgd2lkdGg9IjEwOCIgaGVpZ2h0PSIyNCIgZmlsbD0iI0ZGRkZGRiIvPgogIDxyZWN0IHg9IjQ2IiB5PSIxMzIiIHdpZHRoPSIxMDgiIGhlaWdodD0iMjQiIGZpbGw9IiNGRkZGRkYiLz4KICA8cG9seWdvbiBwb2ludHM9IjcyLDg2IDEyOCw4NiAxMTYsOTkgMTUyLDk5IDEwNCwxMjcgMTE1LDExMiA3MiwxMTIiIGZpbGw9IiM0QUEwNEEiLz4KPC9nPjxwYXRoIGZpbGw9IiMxQzFCMTciIGQ9Ik0zMDEuNjIgMTE4TDI1NS4yMSAxMThMMjU1LjIxIDUxLjA3TDMwMS42NiA1MS4wN0wzMDEuNjYgNjQuMDBMMjcxLjA3IDY0LjAwTDI3MS4wNyA3Ny44NEwyOTkuMjMgNzcuODRMMjk5LjIzIDkwLjUxTDI3MS4wNyA5MC41MUwyNzEuMDcgMTA1LjA2TDMwMS42MiAxMDUuMDZMMzAxLjYyIDExOFpNMzMzLjIyIDExOEwzMTcuMzIgMTE4TDMxNy4zMiA1MS4wN0wzNDIuMDMgNTEuMDdMMzUwLjU2IDc3LjEyUTM1MS4yOCA3OS41MCAzNTIuMjAgODMuNDNRMzUzLjEyIDg3LjM2IDM1NC4wNiA5MS44NkwzNTQuMDYgOTEuODZRMzU0Ljg3IDk1LjcyIDM1NS41OSA5OS4zNkwzNTUuNTkgOTkuMzZRMzU2LjI3IDk1Ljc2IDM1Ny4wNyA5MS44NkwzNTcuMDcgOTEuODZRMzU3Ljk3IDg3LjM2IDM1OC44OSA4My40NlEzNTkuODEgNzkuNTUgMzYwLjUzIDc3LjEyTDM2MC41MyA3Ny4xMkwzNjguOTMgNTEuMDdMMzkzLjY5IDUxLjA3TDM5My42OSAxMThMMzc3Ljc0IDExOEwzNzcuNzQgODkuMTZRMzc3Ljc0IDg2LjkxIDM3Ny44MyA4My4zOVEzNzcuOTIgNzkuODYgMzc4LjAzIDc1LjczUTM3OC4xNCA3MS42MCAzNzguMjggNjcuMzdMMzc4LjI4IDY3LjM3UTM3OC4zMiA2NS43MSAzNzguMzIgNjQuMTRMMzc4LjMyIDY0LjE0UTM3Ny45MiA2NS45NCAzNzcuNDcgNjcuODJMMzc3LjQ3IDY3LjgyUTM3Ni4zOSA3Mi4wOSAzNzUuMzMgNzYuMTNRMzc0LjI4IDgwLjE4IDM3My4zMSA4My41NFEzNzIuMzUgODYuOTEgMzcxLjY3IDg5LjE2TDM3MS42NyA4OS4xNkwzNjIuMTUgMTE4TDM0OC45MCAxMThMMzM5LjI0IDg5LjE2UTMzOC41NyA4Ni45NiAzMzcuNTggODMuNTlRMzM2LjU5IDgwLjIyIDMzNS41MSA3Ni4xOFEzMzQuNDMgNzIuMTMgMzMzLjM2IDY3Ljg3TDMzMy4zNiA2Ny44N1EzMzMuMDAgNjYuMzggMzMyLjY0IDY0Ljk1TDMzMi42NCA2NC45NVEzMzIuNjQgNjYuMTIgMzMyLjY4IDY3LjI4TDMzMi42OCA2Ny4yOFEzMzIuNzcgNzEuNDYgMzMyLjg4IDc1LjY0UTMzMy4wMCA3OS44MiAzMzMuMTEgODMuMzRRMzMzLjIyIDg2Ljg3IDMzMy4yMiA4OS4xNkwzMzMuMjIgODkuMTZMMzMzLjIyIDExOFpNNDI1Ljk2IDExOEw0MTAuMTEgMTE4TDQxMC4xMSA1MS4wN0w0MzcuNTEgNTEuMDdRNDQ1LjA2IDUxLjA3IDQ1MC41NCA1My45OVE0NTYuMDIgNTYuOTEgNDU4Ljk2IDYyLjEyUTQ2MS45MCA2Ny4zMyA0NjEuOTAgNzQuMjBMNDYxLjkwIDc0LjIwUTQ2MS45MCA4MS4xMiA0NTguODkgODYuMjRRNDU1Ljg4IDkxLjM2IDQ1MC4zMSA5NC4yNFE0NDQuNzQgOTcuMTEgNDM3LjA2IDk3LjExTDQzNy4wNiA5Ny4xMUw0MjUuOTYgOTcuMTFMNDI1Ljk2IDExOFpNNDI1Ljk2IDYzLjkxTDQyNS45NiA4NC41OEw0MzQuMTkgODQuNThRNDM3LjkxIDg0LjU4IDQ0MC40MyA4My4yOFE0NDIuOTUgODEuOTcgNDQ0LjIwIDc5LjY0UTQ0NS40NiA3Ny4zMCA0NDUuNDYgNzQuMjBMNDQ1LjQ2IDc0LjIwUTQ0NS40NiA3MS4wNiA0NDQuMjAgNjguNzRRNDQyLjk1IDY2LjQzIDQ0MC40MSA2NS4xN1E0MzcuODcgNjMuOTEgNDM0LjE0IDYzLjkxTDQzNC4xNCA2My45MUw0MjUuOTYgNjMuOTFaTTQ3Ni4wOCA1MS4wN0w0OTEuOTQgNTEuMDdMNDkxLjk0IDExOEw0NzYuMDggMTE4TDQ3Ni4wOCA1MS4wN1pNNTI0LjIxIDExOEw1MDguMzYgMTE4TDUwOC4zNiA1MS4wN0w1MzUuNzYgNTEuMDdRNTQzLjMxIDUxLjA3IDU0OC43OSA1My43OFE1NTQuMjcgNTYuNTAgNTU3LjIxIDYxLjQ5UTU2MC4xNSA2Ni40NyA1NjAuMTUgNzMuMzBMNTYwLjE1IDczLjMwUTU2MC4xNSA4MC4xOCA1NTcuMTQgODUuMDVRNTU0LjEzIDg5LjkyIDU0OC41NiA5Mi40NEw1NDguNTYgOTIuNDRRNTQ4LjU2IDkyLjQ0IDU0OC41MiA5Mi40NEw1NDguNTIgOTIuNDRMNTYyLjQ5IDExOEw1NDUuMTAgMTE4TDUzMi44NCA5NC45Nkw1MjQuMjEgOTQuOTZMNTI0LjIxIDExOFpNNTI0LjIxIDYzLjkxTDUyNC4yMSA4Mi40Mkw1MzIuNDQgODIuNDJRNTM2LjE2IDgyLjQyIDUzOC42NiA4MS40M1E1NDEuMTUgODAuNDUgNTQyLjQzIDc4LjQyUTU0My43MSA3Ni40MCA1NDMuNzEgNzMuMzBMNTQzLjcxIDczLjMwUTU0My43MSA3MC4xNiA1NDIuNDMgNjguMDlRNTQxLjE1IDY2LjAzIDUzOC42MyA2NC45N1E1MzYuMTIgNjMuOTEgNTMyLjM5IDYzLjkxTDUzMi4zOSA2My45MUw1MjQuMjEgNjMuOTFaTTYyMS42OCAxMThMNTc1LjI3IDExOEw1NzUuMjcgNTEuMDdMNjIxLjcyIDUxLjA3TDYyMS43MiA2NC4wMEw1OTEuMTMgNjQuMDBMNTkxLjEzIDc3Ljg0TDYxOS4yOSA3Ny44NEw2MTkuMjkgOTAuNTFMNTkxLjEzIDkwLjUxTDU5MS4xMyAxMDUuMDZMNjIxLjY4IDEwNS4wNkw2MjEuNjggMTE4WiIvPgo8cGF0aCBmaWxsPSIjNEFBMDRBIiBkPSJNMjc2LjM2IDE2OEwyNTQuOTAgMTY4TDI1NC45MCAxMzUuOTlMMjc2LjMyIDEzNS45OUwyNzYuMzIgMTQxLjQyTDI2MS40NSAxNDEuNDJMMjYxLjQ1IDE0OS4xNkwyNzUuMjAgMTQ5LjE2TDI3NS4yMCAxNTQuNTFMMjYxLjQ1IDE1NC41MUwyNjEuNDUgMTYyLjU2TDI3Ni4zNiAxNjIuNTZMMjc2LjM2IDE2OFpNMzE4Ljk5IDE2OEwyOTguNjMgMTY4TDI5OC42MyAxMzUuOTlMMzA1LjE4IDEzNS45OUwzMDUuMTggMTYyLjU2TDMxOC45OSAxNjIuNTZMMzE4Ljk5IDE2OFpNMzYxLjk3IDE2OEwzNDAuNTEgMTY4TDM0MC41MSAxMzUuOTlMMzYxLjkzIDEzNS45OUwzNjEuOTMgMTQxLjQyTDM0Ny4wNiAxNDEuNDJMMzQ3LjA2IDE0OS4xNkwzNjAuODEgMTQ5LjE2TDM2MC44MSAxNTQuNTFMMzQ3LjA2IDE1NC41MUwzNDcuMDYgMTYyLjU2TDM2MS45NyAxNjIuNTZMMzYxLjk3IDE2OFpNMzk4LjIyIDE2OC40M0wzOTguMjIgMTY4LjQzUTM5My45NiAxNjguNDMgMzkwLjYwIDE2Ni41MFEzODcuMjQgMTY0LjU2IDM4NS4zMCAxNjAuODlRMzgzLjM1IDE1Ny4yMSAzODMuMzUgMTUyLjAyTDM4My4zNSAxNTIuMDJRMzgzLjM1IDE0Ni43OSAzODUuMzEgMTQzLjExUTM4Ny4yNiAxMzkuNDMgMzkwLjYzIDEzNy40OVEzOTQuMDEgMTM1LjU2IDM5OC4yMiAxMzUuNTZMMzk4LjIyIDEzNS41NlE0MDAuOTUgMTM1LjU2IDQwMy4zMCAxMzYuMzJRNDA1LjY1IDEzNy4wOCA0MDcuNDggMTM4LjU0UTQwOS4zMCAxNDAuMDEgNDEwLjQ2IDE0Mi4xMlE0MTEuNjMgMTQ0LjI0IDQxMS45OSAxNDYuOTVMNDExLjk5IDE0Ni45NUw0MDUuMzUgMTQ2Ljk1UTQwNS4xNCAxNDUuNjEgNDA0LjUyIDE0NC41OVE0MDMuOTEgMTQzLjU3IDQwMy4wMCAxNDIuODVRNDAyLjA5IDE0Mi4xMyA0MDAuOTAgMTQxLjc2UTM5OS43MiAxNDEuMzggMzk4LjM1IDE0MS4zOEwzOTguMzUgMTQxLjM4UTM5NS44NiAxNDEuMzggMzkzLjk4IDE0Mi42M1EzOTIuMTAgMTQzLjg3IDM5MS4wNSAxNDYuMjVRMzkwLjAxIDE0OC42MiAzOTAuMDEgMTUyLjAyTDM5MC4wMSAxNTIuMDJRMzkwLjAxIDE1NS40NyAzOTEuMDYgMTU3Ljg0UTM5Mi4xMiAxNjAuMjAgMzkzLjk5IDE2MS40MFEzOTUuODYgMTYyLjYxIDM5OC4zMyAxNjIuNjFMMzk4LjMzIDE2Mi42MVEzOTkuNzAgMTYyLjYxIDQwMC44NyAxNjIuMjNRNDAyLjA0IDE2MS44NiA0MDIuOTggMTYxLjE0UTQwMy45MSAxNjAuNDIgNDA0LjUyIDE1OS4zOFE0MDUuMTQgMTU4LjM1IDQwNS4zNyAxNTcuMDRMNDA1LjM3IDE1Ny4wNEw0MTIuMDEgMTU3LjA0UTQxMS43NSAxNTkuMjggNDEwLjY5IDE2MS4zMlE0MDkuNjMgMTYzLjM2IDQwNy44NyAxNjQuOTdRNDA2LjEwIDE2Ni41OCA0MDMuNjggMTY3LjUxUTQwMS4yNSAxNjguNDMgMzk4LjIyIDE2OC40M1pNNDQyLjI5IDE0MS40Mkw0MzIuNDkgMTQxLjQyTDQzMi40OSAxMzUuOTlMNDU4LjY0IDEzNS45OUw0NTguNjQgMTQxLjQyTDQ0OC44NiAxNDEuNDJMNDQ4Ljg2IDE2OEw0NDIuMjkgMTY4TDQ0Mi4yOSAxNDEuNDJaTTQ4Ni43MCAxNjhMNDgwLjE1IDE2OEw0ODAuMTUgMTM1Ljk5TDQ5Mi42MyAxMzUuOTlRNDk2LjI5IDEzNS45OSA0OTguODQgMTM3LjI4UTUwMS40MCAxMzguNTcgNTAyLjc0IDE0MC45MVE1MDQuMDggMTQzLjI1IDUwNC4wOCAxNDYuNDFRNTA0LjA4IDE0OS41NyA1MDIuNzIgMTUxLjg1UTUwMS4zNiAxNTQuMTQgNDk4Ljc4IDE1NS4zNUw0OTguNzggMTU1LjM1UTQ5OC41OCAxNTUuNDMgNDk4LjQxIDE1NS41Mkw0OTguNDEgMTU1LjUyTDUwNS4yMiAxNjhMNDk3Ljk2IDE2OEw0OTEuODQgMTU2LjU3TDQ4Ni43MCAxNTYuNTdMNDg2LjcwIDE2OFpNNDg2LjcwIDE0MS40MEw0ODYuNzAgMTUxLjI2TDQ5MS40MyAxNTEuMjZRNDkzLjQ1IDE1MS4yNiA0OTQuNzQgMTUwLjcyUTQ5Ni4wMyAxNTAuMTcgNDk2LjY3IDE0OS4wOFE0OTcuMzIgMTQ4LjAwIDQ5Ny4zMiAxNDYuNDFMNDk3LjMyIDE0Ni40MVE0OTcuMzIgMTQ0Ljc4IDQ5Ni42NyAxNDMuNjdRNDk2LjAzIDE0Mi41NiA0OTQuNzMgMTQxLjk4UTQ5My40MyAxNDEuNDAgNDkxLjQxIDE0MS40MEw0OTEuNDEgMTQxLjQwTDQ4Ni43MCAxNDEuNDBaTTUyNi4wNSAxMzUuOTlMNTMyLjYwIDEzNS45OUw1MzIuNjAgMTY4TDUyNi4wNSAxNjhMNTI2LjA1IDEzNS45OVpNNTY5LjM5IDE2OC40M0w1NjkuMzkgMTY4LjQzUTU2NS4xMyAxNjguNDMgNTYxLjc3IDE2Ni41MFE1NTguNDEgMTY0LjU2IDU1Ni40NiAxNjAuODlRNTU0LjUyIDE1Ny4yMSA1NTQuNTIgMTUyLjAyTDU1NC41MiAxNTIuMDJRNTU0LjUyIDE0Ni43OSA1NTYuNDcgMTQzLjExUTU1OC40MyAxMzkuNDMgNTYxLjgwIDEzNy40OVE1NjUuMTggMTM1LjU2IDU2OS4zOSAxMzUuNTZMNTY5LjM5IDEzNS41NlE1NzIuMTIgMTM1LjU2IDU3NC40NyAxMzYuMzJRNTc2LjgyIDEzNy4wOCA1NzguNjUgMTM4LjU0UTU4MC40NyAxNDAuMDEgNTgxLjYzIDE0Mi4xMlE1ODIuNzkgMTQ0LjI0IDU4My4xNiAxNDYuOTVMNTgzLjE2IDE0Ni45NUw1NzYuNTIgMTQ2Ljk1UTU3Ni4zMCAxNDUuNjEgNTc1LjY5IDE0NC41OVE1NzUuMDggMTQzLjU3IDU3NC4xNyAxNDIuODVRNTczLjI1IDE0Mi4xMyA1NzIuMDcgMTQxLjc2UTU3MC44OSAxNDEuMzggNTY5LjUyIDE0MS4zOEw1NjkuNTIgMTQxLjM4UTU2Ny4wMiAxNDEuMzggNTY1LjE0IDE0Mi42M1E1NjMuMjYgMTQzLjg3IDU2Mi4yMiAxNDYuMjVRNTYxLjE4IDE0OC42MiA1NjEuMTggMTUyLjAyTDU2MS4xOCAxNTIuMDJRNTYxLjE4IDE1NS40NyA1NjIuMjMgMTU3Ljg0UTU2My4yOSAxNjAuMjAgNTY1LjE1IDE2MS40MFE1NjcuMDIgMTYyLjYxIDU2OS40OSAxNjIuNjFMNTY5LjQ5IDE2Mi42MVE1NzAuODcgMTYyLjYxIDU3Mi4wNCAxNjIuMjNRNTczLjIxIDE2MS44NiA1NzQuMTUgMTYxLjE0UTU3NS4wOCAxNjAuNDIgNTc1LjY5IDE1OS4zOFE1NzYuMzAgMTU4LjM1IDU3Ni41NCAxNTcuMDRMNTc2LjU0IDE1Ny4wNEw1ODMuMTggMTU3LjA0UTU4Mi45MiAxNTkuMjggNTgxLjg2IDE2MS4zMlE1ODAuNzkgMTYzLjM2IDU3OS4wMyAxNjQuOTdRNTc3LjI3IDE2Ni41OCA1NzQuODQgMTY3LjUxUTU3Mi40MiAxNjguNDMgNTY5LjM5IDE2OC40M1oiLz48cGF0aCBmaWxsPSIjNUY1RjVGIiBkPSJNMjY0LjgzIDIwNkwyNTUuNjEgMjA2TDI1NS42MSAxOTEuNDVMMjY0Ljc3IDE5MS40NUwyNjQuNzcgMTkzLjM2TDI1Ny44NCAxOTMuMzZMMjU3Ljg0IDE5Ny43MEwyNjQuMjcgMTk3LjcwTDI2NC4yNyAxOTkuNjBMMjU3Ljg0IDE5OS42MEwyNTcuODQgMjA0LjA5TDI2NC44MyAyMDQuMDlMMjY0LjgzIDIwNlpNMjgxLjk5IDIwNkwyNzMuMTcgMjA2TDI3My4xNyAxOTEuNDVMMjc1LjQwIDE5MS40NUwyNzUuNDAgMjA0LjA5TDI4MS45OSAyMDQuMDlMMjgxLjk5IDIwNlpNMjk5LjIwIDIwNkwyODkuOTggMjA2TDI4OS45OCAxOTEuNDVMMjk5LjE0IDE5MS40NUwyOTkuMTQgMTkzLjM2TDI5Mi4yMSAxOTMuMzZMMjkyLjIxIDE5Ny43MEwyOTguNjQgMTk3LjcwTDI5OC42NCAxOTkuNjBMMjkyLjIxIDE5OS42MEwyOTIuMjEgMjA0LjA5TDI5OS4yMCAyMDQuMDlMMjk5LjIwIDIwNlpNMzEzLjU5IDIwNi4yMEwzMTMuNTkgMjA2LjIwUTMxMS43MCAyMDYuMjAgMzEwLjIyIDIwNS4zMFEzMDguNzMgMjA0LjQxIDMwNy44OCAyMDIuNzNRMzA3LjAzIDIwMS4wNiAzMDcuMDMgMTk4LjczTDMwNy4wMyAxOTguNzNRMzA3LjAzIDE5Ni40MCAzMDcuODggMTk0LjczUTMwOC43MyAxOTMuMDUgMzEwLjIyIDE5Mi4xNVEzMTEuNzAgMTkxLjI1IDMxMy41OSAxOTEuMjVMMzEzLjU5IDE5MS4yNVEzMTQuNzQgMTkxLjI1IDMxNS43NSAxOTEuNTlRMzE2Ljc2IDE5MS45MiAzMTcuNTYgMTkyLjU1UTMxOC4zNSAxOTMuMTkgMzE4Ljg3IDE5NC4xMFEzMTkuNDAgMTk1LjAwIDMxOS41OCAxOTYuMTZMMzE5LjU4IDE5Ni4xNkwzMTcuMzUgMTk2LjE2UTMxNy4yMSAxOTUuNDYgMzE2Ljg2IDE5NC45M1EzMTYuNTIgMTk0LjQwIDMxNi4wMiAxOTQuMDNRMzE1LjUyIDE5My42NiAzMTQuOTAgMTkzLjQ3UTMxNC4yOSAxOTMuMjkgMzEzLjYxIDE5My4yOUwzMTMuNjEgMTkzLjI5UTMxMi4zNiAxOTMuMjkgMzExLjM2IDE5My45MlEzMTAuMzcgMTk0LjU0IDMwOS44MSAxOTUuNzZRMzA5LjI0IDE5Ni45OCAzMDkuMjQgMTk4LjczTDMwOS4yNCAxOTguNzNRMzA5LjI0IDIwMC40OSAzMDkuODIgMjAxLjcxUTMxMC4zOSAyMDIuOTIgMzExLjM4IDIwMy41NFEzMTIuMzcgMjA0LjE2IDMxMy42MSAyMDQuMTZMMzEzLjYxIDIwNC4xNlEzMTQuMjkgMjA0LjE2IDMxNC45MCAyMDMuOTdRMzE1LjUxIDIwMy43OCAzMTYuMDEgMjAzLjQyUTMxNi41MiAyMDMuMDUgMzE2Ljg2IDIwMi41MVEzMTcuMjEgMjAxLjk4IDMxNy4zNSAyMDEuMjlMMzE3LjM1IDIwMS4yOUwzMTkuNTkgMjAxLjI5UTMxOS40MyAyMDIuMzcgMzE4LjkyIDIwMy4yNlEzMTguNDEgMjA0LjE1IDMxNy42MiAyMDQuODJRMzE2LjgzIDIwNS40OCAzMTUuODEgMjA1Ljg0UTMxNC43OSAyMDYuMjAgMzEzLjU5IDIwNi4yMFpNMzMxLjUyIDE5My4zNkwzMjYuOTggMTkzLjM2TDMyNi45OCAxOTEuNDVMMzM4LjI4IDE5MS40NUwzMzguMjggMTkzLjM2TDMzMy43NSAxOTMuMzZMMzMzLjc1IDIwNkwzMzEuNTIgMjA2TDMzMS41MiAxOTMuMzZaTTM0OC40OSAyMDZMMzQ2LjI3IDIwNkwzNDYuMjcgMTkxLjQ1TDM1MS40OCAxOTEuNDVRMzUzLjE2IDE5MS40NSAzNTQuMjggMTkyLjAzUTM1NS40MSAxOTIuNjEgMzU1Ljk2IDE5My42NVEzNTYuNTIgMTk0LjY4IDM1Ni41MiAxOTYuMDJMMzU2LjUyIDE5Ni4wMlEzNTYuNTIgMTk3LjM3IDM1NS45NiAxOTguMzhRMzU1LjQwIDE5OS4zOSAzNTQuMjcgMTk5Ljk1TDM1NC4yNyAxOTkuOTVRMzU0LjA4IDIwMC4wNCAzNTMuODYgMjAwLjEyTDM1My44NiAyMDAuMTJMMzU3LjA3IDIwNkwzNTQuNTQgMjA2TDM1MS41OSAyMDAuNTBRMzUxLjUzIDIwMC41MCAzNTEuNDYgMjAwLjUwTDM1MS40NiAyMDAuNTBMMzQ4LjQ5IDIwMC41MEwzNDguNDkgMjA2Wk0zNDguNDkgMTkzLjM1TDM0OC40OSAxOTguNjBMMzUxLjI1IDE5OC42MFEzNTIuMzIgMTk4LjYwIDM1Mi45OCAxOTguMjlRMzUzLjY0IDE5Ny45OCAzNTMuOTUgMTk3LjQxUTM1NC4yNiAxOTYuODMgMzU0LjI2IDE5Ni4wMkwzNTQuMjYgMTk2LjAyUTM1NC4yNiAxOTUuMjAgMzUzLjk1IDE5NC42MFEzNTMuNjQgMTk0LjAxIDM1Mi45NyAxOTMuNjhRMzUyLjMxIDE5My4zNSAzNTEuMjMgMTkzLjM1TDM1MS4yMyAxOTMuMzVMMzQ4LjQ5IDE5My4zNVpNMzY0LjcyIDE5MS40NUwzNjYuOTUgMTkxLjQ1TDM2Ni45NSAyMDZMMzY0LjcyIDIwNkwzNjQuNzIgMTkxLjQ1Wk0zODEuNzIgMjA2LjIwTDM4MS43MiAyMDYuMjBRMzc5LjgzIDIwNi4yMCAzNzguMzUgMjA1LjMwUTM3Ni44NyAyMDQuNDEgMzc2LjAyIDIwMi43M1EzNzUuMTcgMjAxLjA2IDM3NS4xNyAxOTguNzNMMzc1LjE3IDE5OC43M1EzNzUuMTcgMTk2LjQwIDM3Ni4wMiAxOTQuNzNRMzc2Ljg3IDE5My4wNSAzNzguMzUgMTkyLjE1UTM3OS44MyAxOTEuMjUgMzgxLjcyIDE5MS4yNUwzODEuNzIgMTkxLjI1UTM4Mi44NyAxOTEuMjUgMzgzLjg4IDE5MS41OVEzODQuODkgMTkxLjkyIDM4NS42OSAxOTIuNTVRMzg2LjQ4IDE5My4xOSAzODcuMDEgMTk0LjEwUTM4Ny41MyAxOTUuMDAgMzg3LjcxIDE5Ni4xNkwzODcuNzEgMTk2LjE2TDM4NS40OCAxOTYuMTZRMzg1LjM0IDE5NS40NiAzODUuMDAgMTk0LjkzUTM4NC42NSAxOTQuNDAgMzg0LjE1IDE5NC4wM1EzODMuNjUgMTkzLjY2IDM4My4wNCAxOTMuNDdRMzgyLjQyIDE5My4yOSAzODEuNzQgMTkzLjI5TDM4MS43NCAxOTMuMjlRMzgwLjQ5IDE5My4yOSAzNzkuNTAgMTkzLjkyUTM3OC41MSAxOTQuNTQgMzc3Ljk0IDE5NS43NlEzNzcuMzcgMTk2Ljk4IDM3Ny4zNyAxOTguNzNMMzc3LjM3IDE5OC43M1EzNzcuMzcgMjAwLjQ5IDM3Ny45NSAyMDEuNzFRMzc4LjUzIDIwMi45MiAzNzkuNTEgMjAzLjU0UTM4MC41MCAyMDQuMTYgMzgxLjc0IDIwNC4xNkwzODEuNzQgMjA0LjE2UTM4Mi40MiAyMDQuMTYgMzgzLjAzIDIwMy45N1EzODMuNjQgMjAzLjc4IDM4NC4xNSAyMDMuNDJRMzg0LjY1IDIwMy4wNSAzODUuMDAgMjAyLjUxUTM4NS4zNCAyMDEuOTggMzg1LjQ4IDIwMS4yOUwzODUuNDggMjAxLjI5TDM4Ny43MiAyMDEuMjlRMzg3LjU2IDIwMi4zNyAzODcuMDUgMjAzLjI2UTM4Ni41NCAyMDQuMTUgMzg1Ljc1IDIwNC44MlEzODQuOTYgMjA1LjQ4IDM4My45NCAyMDUuODRRMzgyLjkyIDIwNi4yMCAzODEuNzIgMjA2LjIwWk0zOTcuMTQgMjA2TDM5NC43MyAyMDZMMzk5LjkwIDE5MS40NUw0MDIuNjQgMTkxLjQ1TDQwNy45MSAyMDZMNDA1LjUwIDIwNkw0MDQuMTYgMjAyLjE2TDM5OC40NCAyMDIuMTZMMzk3LjE0IDIwNlpNMzk5LjA3IDIwMC4zMUw0MDMuNTEgMjAwLjMxTDQwMi42NyAxOTcuOTBRNDAyLjM0IDE5Ni45MiA0MDEuOTUgMTk1LjU4TDQwMS45NSAxOTUuNThRNDAxLjYzIDE5NC41NCA0MDEuMjYgMTkzLjIwTDQwMS4yNiAxOTMuMjBRNDAwLjg5IDE5NC41NiA0MDAuNTkgMTk1LjYxTDQwMC41OSAxOTUuNjFRNDAwLjE5IDE5Ni45NyAzOTkuODggMTk3LjkwTDM5OS44OCAxOTcuOTBMMzk5LjA3IDIwMC4zMVpNNDI0LjM0IDIwNkw0MTUuNTIgMjA2TDQxNS41MiAxOTEuNDVMNDE3Ljc1IDE5MS40NUw0MTcuNzUgMjA0LjA5TDQyNC4zNCAyMDQuMDlMNDI0LjM0IDIwNlpNNDQ3LjIxIDIwNi4yMUw0NDcuMjEgMjA2LjIxUTQ0NS43NSAyMDYuMjEgNDQ0LjY5IDIwNS42N1E0NDMuNjMgMjA1LjEzIDQ0My4wNiAyMDQuMjJRNDQyLjQ5IDIwMy4zMSA0NDIuNDkgMjAyLjE5TDQ0Mi40OSAyMDIuMTlRNDQyLjQ5IDIwMS4yNSA0NDIuODYgMjAwLjU3UTQ0My4yNCAxOTkuODkgNDQzLjkxIDE5OS4zMEw0NDMuOTEgMTk5LjMwUTQ0NC41MyAxOTguNzYgNDQ1LjMxIDE5OC4yMEw0NDUuMzEgMTk4LjIwUTQ0NS4xNiAxOTguMDIgNDQ1LjAzIDE5Ny44Nkw0NDUuMDMgMTk3Ljg2UTQ0NC40MiAxOTcuMTIgNDQ0LjA3IDE5Ni4zN1E0NDMuNzEgMTk1LjYxIDQ0My43MSAxOTQuNzJMNDQzLjcxIDE5NC43MlE0NDMuNzEgMTkzLjcyIDQ0NC4xNiAxOTIuOTVRNDQ0LjYyIDE5Mi4xOCA0NDUuNDUgMTkxLjc0UTQ0Ni4yOCAxOTEuMzAgNDQ3LjM5IDE5MS4zMEw0NDcuMzkgMTkxLjMwUTQ0OC41MSAxOTEuMzAgNDQ5LjMyIDE5MS43NFE0NTAuMTMgMTkyLjE3IDQ1MC41NiAxOTIuOTBRNDUxLjAwIDE5My42NCA0NTEuMDAgMTk0LjU0TDQ1MS4wMCAxOTQuNTRRNDUxLjAwIDE5NS4yMCA0NTAuNzYgMTk1Ljc4UTQ1MC41MiAxOTYuMzUgNDUwLjA4IDE5Ni44NFE0NDkuNjUgMTk3LjMzIDQ0OS4wNyAxOTcuNzZMNDQ5LjA3IDE5Ny43Nkw0NDguMDcgMTk4LjQ5TDQ1MC45NyAyMDEuOTVRNDUxLjEwIDIwMS43MCA0NTEuMjEgMjAxLjQ0TDQ1MS4yMSAyMDEuNDRRNDUxLjU3IDIwMC41MSA0NTEuNTcgMTk5LjM3TDQ1MS41NyAxOTkuMzdMNDUzLjUxIDE5OS4zN1E0NTMuNTEgMjAwLjc4IDQ1My4yMCAyMDEuNzVRNDUyLjg4IDIwMi43MiA0NTIuNDMgMjAzLjMzTDQ1Mi40MyAyMDMuMzNRNDUyLjM2IDIwMy40MiA0NTIuMjkgMjAzLjUxTDQ1Mi4yOSAyMDMuNTFMNDU0LjM4IDIwNkw0NTEuOTQgMjA2TDQ1MC45NiAyMDQuODZRNDUwLjI2IDIwNS41MSA0NDkuMjkgMjA1Ljg0TDQ0OS4yOSAyMDUuODRRNDQ4LjIzIDIwNi4yMSA0NDcuMjEgMjA2LjIxWk00NDkuNzYgMjAzLjQ0TDQ0Ni41MSAxOTkuNjNMNDQ2LjE0IDE5OS45MVE0NDUuMzQgMjAwLjQ5IDQ0NC45OSAyMDEuMDJRNDQ0LjY1IDIwMS41NSA0NDQuNjUgMjAyLjE5TDQ0NC42NSAyMDIuMTlRNDQ0LjY1IDIwMi44NSA0NDQuOTYgMjAzLjM0UTQ0NS4yOCAyMDMuODQgNDQ1Ljg1IDIwNC4xMlE0NDYuNDEgMjA0LjM5IDQ0Ny4xNiAyMDQuMzlMNDQ3LjE2IDIwNC4zOVE0NDguMDAgMjA0LjM5IDQ0OC43OSAyMDQuMDRMNDQ4Ljc5IDIwNC4wNFE0NDkuMzAgMjAzLjgwIDQ0OS43NiAyMDMuNDRMNDQ5Ljc2IDIwMy40NFpNNDQ2Ljg5IDE5Ny4wNkw0NDYuODkgMTk3LjA2TDQ0Ny43OSAxOTYuNDNRNDQ4LjA2IDE5Ni4yMyA0NDguMzUgMTk1Ljk3UTQ0OC42NCAxOTUuNzEgNDQ4Ljg0IDE5NS4zNlE0NDkuMDMgMTk1LjAwIDQ0OS4wMyAxOTQuNTVMNDQ5LjAzIDE5NC41NVE0NDkuMDMgMTkzLjkzIDQ0OC42MSAxOTMuNTFRNDQ4LjE4IDE5My4xMCA0NDcuNDMgMTkzLjEwTDQ0Ny40MyAxOTMuMTBRNDQ2LjkyIDE5My4xMCA0NDYuNTQgMTkzLjMwUTQ0Ni4xNSAxOTMuNTEgNDQ1Ljk0IDE5My44N1E0NDUuNzMgMTk0LjIzIDQ0NS43MyAxOTQuNzJMNDQ1LjczIDE5NC43MlE0NDUuNzMgMTk1LjI1IDQ0NS45NyAxOTUuNzRRNDQ2LjIyIDE5Ni4yMiA0NDYuNjUgMTk2Ljc1TDQ0Ni42NSAxOTYuNzVRNDQ2Ljc3IDE5Ni45MSA0NDYuODkgMTk3LjA2Wk00NzIuNTYgMTkxLjQ1TDQ3NC43OSAxOTEuNDVMNDc0Ljc5IDIwNkw0NzIuNTYgMjA2TDQ3Mi41NiAxOTEuNDVaTTQ4NS43NyAyMDZMNDgzLjUxIDIwNkw0ODMuNTEgMTkxLjQ1TDQ4Ni4wOCAxOTEuNDVMNDkxLjU2IDIwMC4xMVE0OTEuODMgMjAwLjU0IDQ5Mi4xNyAyMDEuMTRRNDkyLjUxIDIwMS43MyA0OTIuODkgMjAyLjQ3TDQ5Mi44OSAyMDIuNDdRNDkzLjEwIDIwMi44OCA0OTMuMjkgMjAzLjMxTDQ5My4yOSAyMDMuMzFRNDkzLjI3IDIwMi44OCA0OTMuMjUgMjAyLjQ2TDQ5My4yNSAyMDIuNDZRNDkzLjIwIDIwMS42NCA0OTMuMTggMjAwLjkzUTQ5My4xNiAyMDAuMjIgNDkzLjE2IDE5OS43M0w0OTMuMTYgMTk5LjczTDQ5My4xNiAxOTEuNDVMNDk1LjQxIDE5MS40NUw0OTUuNDEgMjA2TDQ5Mi44NCAyMDZMNDg3LjkyIDE5OC4yNlE0ODcuNTMgMTk3LjYyIDQ4Ny4xNiAxOTYuOThRNDg2Ljc4IDE5Ni4zMyA0ODYuMzMgMTk1LjQ4TDQ4Ni4zMyAxOTUuNDhRNDg2LjAxIDE5NC45MSA0ODUuNjAgMTk0LjE0TDQ4NS42MCAxOTQuMTRRNDg1LjY0IDE5NC44MiA0ODUuNjcgMTk1LjQzTDQ4NS42NyAxOTUuNDNRNDg1LjcyIDE5Ni4zNyA0ODUuNzQgMTk3LjA5UTQ4NS43NyAxOTcuODEgNDg1Ljc3IDE5OC4yNEw0ODUuNzcgMTk4LjI0TDQ4NS43NyAyMDZaTTUwNy45NSAxOTMuMzZMNTAzLjQwIDE5My4zNkw1MDMuNDAgMTkxLjQ1TDUxNC43MCAxOTEuNDVMNTE0LjcwIDE5My4zNkw1MTAuMTggMTkzLjM2TDUxMC4xOCAyMDZMNTA3Ljk1IDIwNkw1MDcuOTUgMTkzLjM2Wk01MzEuOTEgMjA2TDUyMi42OSAyMDZMNTIyLjY5IDE5MS40NUw1MzEuODUgMTkxLjQ1TDUzMS44NSAxOTMuMzZMNTI0LjkyIDE5My4zNkw1MjQuOTIgMTk3LjcwTDUzMS4zNiAxOTcuNzBMNTMxLjM2IDE5OS42MEw1MjQuOTIgMTk5LjYwTDUyNC45MiAyMDQuMDlMNTMxLjkxIDIwNC4wOUw1MzEuOTEgMjA2Wk01NDYuMzcgMjA2LjIwTDU0Ni4zNyAyMDYuMjBRNTQ0LjM5IDIwNi4yMCA1NDIuOTEgMjA1LjI5UTU0MS40MiAyMDQuMzggNTQwLjU4IDIwMi43MFE1MzkuNzUgMjAxLjAzIDUzOS43NSAxOTguNzNMNTM5Ljc1IDE5OC43M1E1MzkuNzUgMTk2LjQxIDU0MC41OSAxOTQuNzRRNTQxLjQ0IDE5My4wNiA1NDIuOTEgMTkyLjE2UTU0NC4zOCAxOTEuMjUgNTQ2LjI3IDE5MS4yNUw1NDYuMjcgMTkxLjI1UTU0Ny40NCAxOTEuMjUgNTQ4LjQ2IDE5MS42MFE1NDkuNDggMTkxLjk1IDU1MC4yOSAxOTIuNTlRNTUxLjA5IDE5My4yMyA1NTEuNjIgMTk0LjExUTU1Mi4xNCAxOTQuOTkgNTUyLjMxIDE5Ni4wNUw1NTIuMzEgMTk2LjA1TDU1MC4wMyAxOTYuMDVRNTQ5LjgzIDE5NS40MSA1NDkuNDkgMTk0LjkwUTU0OS4xNSAxOTQuMzkgNTQ4LjY4IDE5NC4wM1E1NDguMjAgMTkzLjY3IDU0Ny42MCAxOTMuNDhRNTQ3LjAwIDE5My4yOSA1NDYuMjkgMTkzLjI5TDU0Ni4yOSAxOTMuMjlRNTQ1LjA2IDE5My4yOSA1NDQuMDggMTkzLjkxUTU0My4xMCAxOTQuNTQgNTQyLjUyIDE5NS43NVE1NDEuOTUgMTk2Ljk3IDU0MS45NSAxOTguNzJRNTQxLjk1IDIwMC40OCA1NDIuNTIgMjAxLjY5UTU0My4xMCAyMDIuOTAgNTQ0LjA5IDIwMy41M1E1NDUuMDkgMjA0LjE2IDU0Ni4zOCAyMDQuMTZMNTQ2LjM4IDIwNC4xNlE1NDcuNTUgMjA0LjE2IDU0OC40MiAyMDMuNjlRNTQ5LjMwIDIwMy4yMiA1NDkuNzkgMjAyLjM0TDU0OS43OSAyMDIuMzRRNTUwLjI0IDIwMS41MSA1NTAuMjYgMjAwLjM4TDU1MC4yNiAyMDAuMzhMNTQ2LjcwIDIwMC4zOEw1NDYuNzAgMTk4LjU0TDU1Mi40NCAxOTguNTRMNTUyLjQ0IDIwMC4yMVE1NTIuNDQgMjAyLjA0IDU1MS42NiAyMDMuMzlRNTUwLjg3IDIwNC43MyA1NDkuNTAgMjA1LjQ2UTU0OC4xMyAyMDYuMjAgNTQ2LjM3IDIwNi4yMFpNNTYyLjkzIDIwNkw1NjAuNzEgMjA2TDU2MC43MSAxOTEuNDVMNTY1LjkyIDE5MS40NVE1NjcuNjAgMTkxLjQ1IDU2OC43MiAxOTIuMDNRNTY5Ljg1IDE5Mi42MSA1NzAuNDAgMTkzLjY1UTU3MC45NiAxOTQuNjggNTcwLjk2IDE5Ni4wMkw1NzAuOTYgMTk2LjAyUTU3MC45NiAxOTcuMzcgNTcwLjQwIDE5OC4zOFE1NjkuODQgMTk5LjM5IDU2OC43MSAxOTkuOTVMNTY4LjcxIDE5OS45NVE1NjguNTIgMjAwLjA0IDU2OC4zMCAyMDAuMTJMNTY4LjMwIDIwMC4xMkw1NzEuNTEgMjA2TDU2OC45OCAyMDZMNTY2LjAzIDIwMC41MFE1NjUuOTcgMjAwLjUwIDU2NS45MCAyMDAuNTBMNTY1LjkwIDIwMC41MEw1NjIuOTMgMjAwLjUwTDU2Mi45MyAyMDZaTTU2Mi45MyAxOTMuMzVMNTYyLjkzIDE5OC42MEw1NjUuNjkgMTk4LjYwUTU2Ni43NiAxOTguNjAgNTY3LjQyIDE5OC4yOVE1NjguMDggMTk3Ljk4IDU2OC4zOSAxOTcuNDFRNTY4LjcwIDE5Ni44MyA1NjguNzAgMTk2LjAyTDU2OC43MCAxOTYuMDJRNTY4LjcwIDE5NS4yMCA1NjguMzkgMTk0LjYwUTU2OC4wOCAxOTQuMDEgNTY3LjQxIDE5My42OFE1NjYuNzUgMTkzLjM1IDU2NS42NyAxOTMuMzVMNTY1LjY3IDE5My4zNUw1NjIuOTMgMTkzLjM1Wk01ODAuNDYgMjA2TDU3OC4wNSAyMDZMNTgzLjIzIDE5MS40NUw1ODUuOTYgMTkxLjQ1TDU5MS4yMyAyMDZMNTg4LjgyIDIwNkw1ODcuNDggMjAyLjE2TDU4MS43NiAyMDIuMTZMNTgwLjQ2IDIwNlpNNTgyLjQwIDIwMC4zMUw1ODYuODMgMjAwLjMxTDU4NS45OSAxOTcuOTBRNTg1LjY2IDE5Ni45MiA1ODUuMjcgMTk1LjU4TDU4NS4yNyAxOTUuNThRNTg0Ljk2IDE5NC41NCA1ODQuNTggMTkzLjIwTDU4NC41OCAxOTMuMjBRNTg0LjIxIDE5NC41NiA1ODMuOTEgMTk1LjYxTDU4My45MSAxOTUuNjFRNTgzLjUxIDE5Ni45NyA1ODMuMjEgMTk3LjkwTDU4My4yMSAxOTcuOTBMNTgyLjQwIDIwMC4zMVpNNjAyLjY1IDE5My4zNkw1OTguMTEgMTkzLjM2TDU5OC4xMSAxOTEuNDVMNjA5LjQxIDE5MS40NUw2MDkuNDEgMTkzLjM2TDYwNC44OSAxOTMuMzZMNjA0Ljg5IDIwNkw2MDIuNjUgMjA2TDYwMi42NSAxOTMuMzZaTTYyNi42MiAyMDZMNjE3LjQwIDIwNkw2MTcuNDAgMTkxLjQ1TDYyNi41NiAxOTEuNDVMNjI2LjU2IDE5My4zNkw2MTkuNjMgMTkzLjM2TDYxOS42MyAxOTcuNzBMNjI2LjA2IDE5Ny43MEw2MjYuMDYgMTk5LjYwTDYxOS42MyAxOTkuNjBMNjE5LjYzIDIwNC4wOUw2MjYuNjIgMjA0LjA5TDYyNi42MiAyMDZaTTYzOS42OSAyMDZMNjM5LjY5IDIwNkw2MzQuOTYgMjA2TDYzNC45NiAxOTEuNDVMNjM5LjgzIDE5MS40NVE2NDEuOTggMTkxLjQ1IDY0My41MiAxOTIuMzJRNjQ1LjA1IDE5My4xOSA2NDUuODcgMTk0LjgxUTY0Ni42OSAxOTYuNDQgNjQ2LjY5IDE5OC43MUw2NDYuNjkgMTk4LjcxUTY0Ni42OSAyMDAuOTggNjQ1Ljg2IDIwMi42MVE2NDUuMDQgMjA0LjI0IDY0My40NyAyMDUuMTJRNjQxLjkwIDIwNiA2MzkuNjkgMjA2Wk02MzcuMTkgMTkzLjQwTDYzNy4xOSAyMDQuMDVMNjM5LjU3IDIwNC4wNVE2NDEuMjIgMjA0LjA1IDY0Mi4zMSAyMDMuNDNRNjQzLjQxIDIwMi44MiA2NDMuOTYgMjAxLjYyUTY0NC41MCAyMDAuNDIgNjQ0LjUwIDE5OC43MUw2NDQuNTAgMTk4LjcxUTY0NC41MCAxOTcuMDAgNjQzLjk2IDE5NS44MVE2NDMuNDIgMTk0LjYzIDY0Mi4zNSAxOTQuMDJRNjQxLjI4IDE5My40MCA2MzkuNjkgMTkzLjQwTDYzOS42OSAxOTMuNDBMNjM3LjE5IDE5My40MFpNNjY5LjU0IDE5My4zNkw2NjQuOTkgMTkzLjM2TDY2NC45OSAxOTEuNDVMNjc2LjI5IDE5MS40NUw2NzYuMjkgMTkzLjM2TDY3MS43NyAxOTMuMzZMNjcxLjc3IDIwNkw2NjkuNTQgMjA2TDY2OS41NCAxOTMuMzZaTTY5My41MCAyMDZMNjg0LjI4IDIwNkw2ODQuMjggMTkxLjQ1TDY5My40NCAxOTEuNDVMNjkzLjQ0IDE5My4zNkw2ODYuNTEgMTkzLjM2TDY4Ni41MSAxOTcuNzBMNjkyLjk1IDE5Ny43MEw2OTIuOTUgMTk5LjYwTDY4Ni41MSAxOTkuNjBMNjg2LjUxIDIwNC4wOUw2OTMuNTAgMjA0LjA5TDY5My41MCAyMDZaTTcwNy44OSAyMDYuMjBMNzA3Ljg5IDIwNi4yMFE3MDYuMDAgMjA2LjIwIDcwNC41MiAyMDUuMzBRNzAzLjA0IDIwNC40MSA3MDIuMTkgMjAyLjczUTcwMS4zNCAyMDEuMDYgNzAxLjM0IDE5OC43M0w3MDEuMzQgMTk4LjczUTcwMS4zNCAxOTYuNDAgNzAyLjE5IDE5NC43M1E3MDMuMDQgMTkzLjA1IDcwNC41MiAxOTIuMTVRNzA2LjAwIDE5MS4yNSA3MDcuODkgMTkxLjI1TDcwNy44OSAxOTEuMjVRNzA5LjA0IDE5MS4yNSA3MTAuMDUgMTkxLjU5UTcxMS4wNiAxOTEuOTIgNzExLjg2IDE5Mi41NVE3MTIuNjUgMTkzLjE5IDcxMy4xOCAxOTQuMTBRNzEzLjcwIDE5NS4wMCA3MTMuODggMTk2LjE2TDcxMy44OCAxOTYuMTZMNzExLjY1IDE5Ni4xNlE3MTEuNTEgMTk1LjQ2IDcxMS4xNyAxOTQuOTNRNzEwLjgyIDE5NC40MCA3MTAuMzIgMTk0LjAzUTcwOS44MiAxOTMuNjYgNzA5LjIxIDE5My40N1E3MDguNTkgMTkzLjI5IDcwNy45MSAxOTMuMjlMNzA3LjkxIDE5My4yOVE3MDYuNjYgMTkzLjI5IDcwNS42NyAxOTMuOTJRNzA0LjY4IDE5NC41NCA3MDQuMTEgMTk1Ljc2UTcwMy41NCAxOTYuOTggNzAzLjU0IDE5OC43M0w3MDMuNTQgMTk4LjczUTcwMy41NCAyMDAuNDkgNzA0LjEyIDIwMS43MVE3MDQuNzAgMjAyLjkyIDcwNS42OCAyMDMuNTRRNzA2LjY3IDIwNC4xNiA3MDcuOTEgMjA0LjE2TDcwNy45MSAyMDQuMTZRNzA4LjU5IDIwNC4xNiA3MDkuMjAgMjAzLjk3UTcwOS44MSAyMDMuNzggNzEwLjMyIDIwMy40MlE3MTAuODIgMjAzLjA1IDcxMS4xNyAyMDIuNTFRNzExLjUxIDIwMS45OCA3MTEuNjUgMjAxLjI5TDcxMS42NSAyMDEuMjlMNzEzLjg5IDIwMS4yOVE3MTMuNzMgMjAyLjM3IDcxMy4yMiAyMDMuMjZRNzEyLjcxIDIwNC4xNSA3MTEuOTIgMjA0LjgyUTcxMS4xMyAyMDUuNDggNzEwLjExIDIwNS44NFE3MDkuMDkgMjA2LjIwIDcwNy44OSAyMDYuMjBaTTcyNC4yNCAyMDZMNzIyLjAxIDIwNkw3MjIuMDEgMTkxLjQ1TDcyNC4yNCAxOTEuNDVMNzI0LjI0IDE5Ny42MEw3MzEuNDUgMTk3LjYwTDczMS40NSAxOTEuNDVMNzMzLjY4IDE5MS40NUw3MzMuNjggMjA2TDczMS40NSAyMDZMNzMxLjQ1IDE5OS41Mkw3MjQuMjQgMTk5LjUyTDcyNC4yNCAyMDZaTTc0NC42NiAyMDZMNzQyLjQwIDIwNkw3NDIuNDAgMTkxLjQ1TDc0NC45NyAxOTEuNDVMNzUwLjQ1IDIwMC4xMVE3NTAuNzIgMjAwLjU0IDc1MS4wNyAyMDEuMTRRNzUxLjQxIDIwMS43MyA3NTEuNzkgMjAyLjQ3TDc1MS43OSAyMDIuNDdRNzUxLjk5IDIwMi44OCA3NTIuMTkgMjAzLjMxTDc1Mi4xOSAyMDMuMzFRNzUyLjE2IDIwMi44OCA3NTIuMTQgMjAyLjQ2TDc1Mi4xNCAyMDIuNDZRNzUyLjA5IDIwMS42NCA3NTIuMDcgMjAwLjkzUTc1Mi4wNSAyMDAuMjIgNzUyLjA1IDE5OS43M0w3NTIuMDUgMTk5LjczTDc1Mi4wNSAxOTEuNDVMNzU0LjMxIDE5MS40NUw3NTQuMzEgMjA2TDc1MS43MyAyMDZMNzQ2LjgyIDE5OC4yNlE3NDYuNDMgMTk3LjYyIDc0Ni4wNSAxOTYuOThRNzQ1LjY4IDE5Ni4zMyA3NDUuMjMgMTk1LjQ4TDc0NS4yMyAxOTUuNDhRNzQ0LjkwIDE5NC45MSA3NDQuNDkgMTk0LjE0TDc0NC40OSAxOTQuMTRRNzQ0LjUzIDE5NC44MiA3NDQuNTYgMTk1LjQzTDc0NC41NiAxOTUuNDNRNzQ0LjYxIDE5Ni4zNyA3NDQuNjQgMTk3LjA5UTc0NC42NiAxOTcuODEgNzQ0LjY2IDE5OC4yNEw3NDQuNjYgMTk4LjI0TDc0NC42NiAyMDZaTTc2OS4xMCAyMDYuMjBMNzY5LjEwIDIwNi4yMFE3NjcuMjEgMjA2LjIwIDc2NS43MiAyMDUuMzBRNzY0LjIzIDIwNC40MSA3NjMuMzggMjAyLjczUTc2Mi41MiAyMDEuMDYgNzYyLjUyIDE5OC43M0w3NjIuNTIgMTk4LjczUTc2Mi41MiAxOTYuNDAgNzYzLjM4IDE5NC43M1E3NjQuMjMgMTkzLjA1IDc2NS43MiAxOTIuMTVRNzY3LjIxIDE5MS4yNSA3NjkuMTAgMTkxLjI1TDc2OS4xMCAxOTEuMjVRNzcwLjk4IDE5MS4yNSA3NzIuNDYgMTkyLjE1UTc3My45NCAxOTMuMDUgNzc0Ljc5IDE5NC43M1E3NzUuNjUgMTk2LjQwIDc3NS42NSAxOTguNzNMNzc1LjY1IDE5OC43M1E3NzUuNjUgMjAxLjA2IDc3NC43OSAyMDIuNzNRNzczLjk0IDIwNC40MSA3NzIuNDYgMjA1LjMwUTc3MC45OCAyMDYuMjAgNzY5LjEwIDIwNi4yMFpNNzY5LjEwIDIwNC4xNkw3NjkuMTAgMjA0LjE2UTc3MC4zNCAyMDQuMTYgNzcxLjMyIDIwMy41NFE3NzIuMzAgMjAyLjkyIDc3Mi44NyAyMDEuNzFRNzczLjQ0IDIwMC40OSA3NzMuNDQgMTk4LjczTDc3My40NCAxOTguNzNRNzczLjQ0IDE5Ni45NiA3NzIuODcgMTk1Ljc0UTc3Mi4zMCAxOTQuNTMgNzcxLjMyIDE5My45MVE3NzAuMzQgMTkzLjI5IDc2OS4xMCAxOTMuMjlMNzY5LjEwIDE5My4yOVE3NjcuODUgMTkzLjI5IDc2Ni44NiAxOTMuOTFRNzY1Ljg3IDE5NC41NCA3NjUuMzAgMTk1Ljc1UTc2NC43MyAxOTYuOTcgNzY0LjczIDE5OC43M0w3NjQuNzMgMTk4LjczUTc2NC43MyAyMDAuNDkgNzY1LjMwIDIwMS43MFE3NjUuODcgMjAyLjkxIDc2Ni44NiAyMDMuNTRRNzY3Ljg1IDIwNC4xNiA3NjkuMTAgMjA0LjE2Wk03OTIuNjggMjA2TDc4My44NiAyMDZMNzgzLjg2IDE5MS40NUw3ODYuMDkgMTkxLjQ1TDc4Ni4wOSAyMDQuMDlMNzkyLjY4IDIwNC4wOUw3OTIuNjggMjA2Wk04MDYuNzQgMjA2LjIwTDgwNi43NCAyMDYuMjBRODA0Ljg1IDIwNi4yMCA4MDMuMzYgMjA1LjMwUTgwMS44NyAyMDQuNDEgODAxLjAyIDIwMi43M1E4MDAuMTYgMjAxLjA2IDgwMC4xNiAxOTguNzNMODAwLjE2IDE5OC43M1E4MDAuMTYgMTk2LjQwIDgwMS4wMiAxOTQuNzNRODAxLjg3IDE5My4wNSA4MDMuMzYgMTkyLjE1UTgwNC44NSAxOTEuMjUgODA2Ljc0IDE5MS4yNUw4MDYuNzQgMTkxLjI1UTgwOC42MiAxOTEuMjUgODEwLjEwIDE5Mi4xNVE4MTEuNTggMTkzLjA1IDgxMi40MyAxOTQuNzNRODEzLjI5IDE5Ni40MCA4MTMuMjkgMTk4LjczTDgxMy4yOSAxOTguNzNRODEzLjI5IDIwMS4wNiA4MTIuNDMgMjAyLjczUTgxMS41OCAyMDQuNDEgODEwLjEwIDIwNS4zMFE4MDguNjIgMjA2LjIwIDgwNi43NCAyMDYuMjBaTTgwNi43NCAyMDQuMTZMODA2Ljc0IDIwNC4xNlE4MDcuOTggMjA0LjE2IDgwOC45NiAyMDMuNTRRODA5Ljk0IDIwMi45MiA4MTAuNTEgMjAxLjcxUTgxMS4wOCAyMDAuNDkgODExLjA4IDE5OC43M0w4MTEuMDggMTk4LjczUTgxMS4wOCAxOTYuOTYgODEwLjUxIDE5NS43NFE4MDkuOTQgMTk0LjUzIDgwOC45NiAxOTMuOTFRODA3Ljk4IDE5My4yOSA4MDYuNzQgMTkzLjI5TDgwNi43NCAxOTMuMjlRODA1LjQ5IDE5My4yOSA4MDQuNTAgMTkzLjkxUTgwMy41MSAxOTQuNTQgODAyLjk0IDE5NS43NVE4MDIuMzcgMTk2Ljk3IDgwMi4zNyAxOTguNzNMODAyLjM3IDE5OC43M1E4MDIuMzcgMjAwLjQ5IDgwMi45NCAyMDEuNzBRODAzLjUxIDIwMi45MSA4MDQuNTAgMjAzLjU0UTgwNS40OSAyMDQuMTYgODA2Ljc0IDIwNC4xNlpNODI3LjYyIDIwNi4yMEw4MjcuNjIgMjA2LjIwUTgyNS42NCAyMDYuMjAgODI0LjE2IDIwNS4yOVE4MjIuNjcgMjA0LjM4IDgyMS44MyAyMDIuNzBRODIxLjAwIDIwMS4wMyA4MjEuMDAgMTk4LjczTDgyMS4wMCAxOTguNzNRODIxLjAwIDE5Ni40MSA4MjEuODQgMTk0Ljc0UTgyMi42OSAxOTMuMDYgODI0LjE2IDE5Mi4xNlE4MjUuNjMgMTkxLjI1IDgyNy41MiAxOTEuMjVMODI3LjUyIDE5MS4yNVE4MjguNjkgMTkxLjI1IDgyOS43MSAxOTEuNjBRODMwLjczIDE5MS45NSA4MzEuNTQgMTkyLjU5UTgzMi4zNCAxOTMuMjMgODMyLjg3IDE5NC4xMVE4MzMuMzkgMTk0Ljk5IDgzMy41NiAxOTYuMDVMODMzLjU2IDE5Ni4wNUw4MzEuMjggMTk2LjA1UTgzMS4wOCAxOTUuNDEgODMwLjc0IDE5NC45MFE4MzAuNDAgMTk0LjM5IDgyOS45MyAxOTQuMDNRODI5LjQ1IDE5My42NyA4MjguODUgMTkzLjQ4UTgyOC4yNSAxOTMuMjkgODI3LjU0IDE5My4yOUw4MjcuNTQgMTkzLjI5UTgyNi4zMSAxOTMuMjkgODI1LjMzIDE5My45MVE4MjQuMzUgMTk0LjU0IDgyMy43NyAxOTUuNzVRODIzLjIwIDE5Ni45NyA4MjMuMjAgMTk4LjcyUTgyMy4yMCAyMDAuNDggODIzLjc3IDIwMS42OVE4MjQuMzUgMjAyLjkwIDgyNS4zNCAyMDMuNTNRODI2LjM0IDIwNC4xNiA4MjcuNjMgMjA0LjE2TDgyNy42MyAyMDQuMTZRODI4LjgwIDIwNC4xNiA4MjkuNjcgMjAzLjY5UTgzMC41NSAyMDMuMjIgODMxLjA0IDIwMi4zNEw4MzEuMDQgMjAyLjM0UTgzMS40OSAyMDEuNTEgODMxLjUxIDIwMC4zOEw4MzEuNTEgMjAwLjM4TDgyNy45NSAyMDAuMzhMODI3Ljk1IDE5OC41NEw4MzMuNjkgMTk4LjU0TDgzMy42OSAyMDAuMjFRODMzLjY5IDIwMi4wNCA4MzIuOTEgMjAzLjM5UTgzMi4xMiAyMDQuNzMgODMwLjc1IDIwNS40NlE4MjkuMzggMjA2LjIwIDgyNy42MiAyMDYuMjBaTTg0OC40MyAyMDZMODQ2LjIwIDIwNkw4NDYuMjAgMjAwLjIxTDg0MC44NCAxOTEuNDVMODQzLjQ0IDE5MS40NUw4NDYuMTcgMTk2LjA5UTg0Ni42MyAxOTYuODUgODQ2Ljk4IDE5Ny41NUw4NDYuOTggMTk3LjU1UTg0Ny4xNiAxOTcuOTEgODQ3LjM0IDE5OC4zNUw4NDcuMzQgMTk4LjM1UTg0Ny41MiAxOTcuODkgODQ3LjcxIDE5Ny41Mkw4NDcuNzEgMTk3LjUyUTg0OC4wNSAxOTYuODIgODQ4LjQ4IDE5Ni4wOUw4NDguNDggMTk2LjA5TDg1MS4xOCAxOTEuNDVMODUzLjc3IDE5MS40NUw4NDguNDMgMjAwLjIxTDg0OC40MyAyMDZaIi8+PC9zdmc+" class="brand-mark" id="logoImg" alt="Empire Electric logo" style="object-fit: contain;">
+        
+      </div>
+      <div class="doc-title">
+        Time &amp; Material<br>Work Order
+        <small>Field Service Report</small>
+      </div>
+    </div>
+
+    <!-- META: Company info + Job # / Date -->
+    <div class="meta-grid">
+      <div class="meta-block">
+        <h3>From</h3>
+        <div class="line"><strong>Empire Electric</strong></div>
+        <div class="line">19 Glen Carran Circle, Sparks, NV 89431</div>
+        <div class="line">info@empireelectricnv.com</div>
+      </div>
+      <div class="meta-block">
+        <h3>Job Details</h3>
+        <div class="grid-2" style="gap:6px 10px;">
+          <div class="field">
+            <label>Job / Invoice #</label>
+            <input type="text" id="jobNumber" placeholder="EENV-0001">
+          </div>
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="jobDate">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CUSTOMER INFO -->
+    <div class="section">
+      <h2>Customer Information</h2>
+      <div class="grid-2">
+        <div class="field">
+          <label>Customer Name</label>
+          <input type="text" id="custName" placeholder="John Smith">
+        </div>
+        <div class="field">
+          <label>Phone Number</label>
+          <input type="tel" id="custPhone" placeholder="(775) 555-0000">
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="custEmail" placeholder="customer@email.com">
+        </div>
+        <div class="field">
+          <label>Service Address</label>
+          <input type="text" id="custAddress" placeholder="123 Main St, Reno NV">
+        </div>
+      </div>
+    </div>
+
+    <!-- WORK NARRATIVE -->
+    <div class="section">
+      <h2>Work Narrative</h2>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Customer Complaint</label>
+        <textarea id="complaint" placeholder="What the customer reported..."></textarea>
+      </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Work Performed</label>
+        <textarea id="workDone" placeholder="Describe the work performed in the field..."></textarea>
+      </div>
+      <div class="field">
+        <label>Resolution</label>
+        <textarea id="resolution" placeholder="Final result, recommendations, follow-ups..."></textarea>
+      </div>
+    </div>
+
+    <!-- LABOR -->
+    <div class="section">
+      <h2>Labor</h2>
+      <table class="lt" id="laborTable">
+        <thead>
+          <tr>
+            <th style="width:34px;">#</th>
+            <th>Employee</th>
+            <th style="width:100px;" class="num">Rate ($/hr)</th>
+            <th style="width:80px;" class="num">Hours</th>
+            <th style="width:110px;" class="num">Line Total</th>
+            <th style="width:36px;"></th>
+          </tr>
+        </thead>
+        <tbody id="laborBody"></tbody>
+      </table>
+      <button class="add-row-btn" type="button" id="addLaborBtn">+ Add Labor Row</button>
+    </div>
+
+    <!-- MATERIALS -->
+    <div class="section">
+      <h2>Materials</h2>
+      <table class="lt" id="matTable">
+        <thead>
+          <tr>
+            <th style="width:34px;">#</th>
+            <th style="width:64px;">Photo</th>
+            <th style="width:64px;" class="num">Qty</th>
+            <th>Material / Description</th>
+            <th style="width:100px;" class="num">Unit Cost</th>
+            <th style="width:110px;" class="num">Line Total</th>
+            <th style="width:36px;"></th>
+          </tr>
+        </thead>
+        <tbody id="matBody"></tbody>
+      </table>
+      <button class="add-row-btn" type="button" id="addMatBtn">+ Add Material Row</button>
+    </div>
+
+        <!-- SITE PHOTOS -->
+    <div class="section" id="photosSection">
+      <h2>Site Photos</h2>
+      <div class="photo-grid" id="photoGrid"></div>
+      <button class="add-row-btn" type="button" id="addPhotoBtn" style="margin-top:10px;">+ Add Photo</button>
+      <input type="file" id="photoFileInput" accept="image/*" capture="environment" style="display:none;" multiple />
+    </div>
+
+    <!-- TOTALS -->
+    <div class="section">
+      <h2>Totals</h2>
+      <div class="totals">
+        <div class="row sub"><span>Labor Subtotal</span><span id="laborSub">$0.00</span></div>
+        <div class="row sub"><span>Materials Subtotal</span><span id="matSub">$0.00</span></div>
+        <div class="row sub">
+          <span>Materials Markup
+            <input type="number" step="0.1" min="0" id="markupRate" value="30" class="tax-input" /> %
+          </span>
+          <span id="matMarkup">$0.00</span>
+        </div>
+        <div class="row grand"><span>Grand Total</span><span id="grandTotal">$0.00</span></div>
+      </div>
+    </div>
+
+    <!-- SIGNATURE -->
+    <div class="section">
+      <h2>Acknowledgement</h2>
+      <div class="sig-wrap">
+        <div class="sig-box">
+          <div class="label">
+            <span>Field Tech Signature</span>
+            <button type="button" id="clearSigBtn">Clear</button>
+          </div>
+          <canvas id="sigPad" class="sig-canvas" width="792" height="220"></canvas>
+        </div>
+        <div class="sig-box" style="background:var(--atw-soft);">
+          <div class="label"><span>Printed Name &amp; Date</span></div>
+          <div style="padding: 14px;">
+            <div class="field" style="margin-bottom:8px;">
+              <label>Printed Name</label>
+              <input type="text" id="custPrint">
+            </div>
+            <div class="field">
+              <label>Sign Date</label>
+              <input type="date" id="signDate">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="foot">
+      <strong>Thank you for choosing Empire Electric.</strong><br>
+      We appreciate your business and the opportunity to serve you. Payment is due upon receipt unless otherwise agreed in writing. For questions about this invoice, please contact us at <strong>info@empireelectricnv.com</strong>.
+      <div class="surcharge">Note: A 3% processing fee applies to all credit/debit card payments.</div>
+    </div>
+
+  </div>
+</div>
+
+
+
+<div class="toast" id="toast">Saved</div>
+
+<script>
+/* ============================================================
+   Empire Electric Time & Material Form — logic
+   ============================================================ */
+
+const EMPLOYEES = [
+  { id: 1, name: "Jacob DePaoli",          rate: 120 },
+  { id: 2, name: "Candace DePaoli",        rate: 120 },
+  { id: 3, name: "Oscar Guzman Contreras", rate: 120 },
+  { id: 4, name: "Tanner Cox",             rate: 120 },
+  { id: 5, name: "Tyler Glider",           rate: 120 },
+  { id: 6, name: "Caleb Biondi",           rate: 120 },
+];
+/* MATERIAL_MARKUP is now read live from #markupRate (was a constant) */
+
+/* ---------- helpers ---------- */
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => "$" + (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
+const showToast = (msg, ms=1800) => {
+  let t = $("toast");
+  if (!t) {
+    // Create on the fly if missing (e.g. branded copy that stripped it)
+    t = document.createElement("div");
+    t.id = "toast";
+    t.className = "toast";
+    document.body.appendChild(t);
+  }
+  t.innerHTML = msg;
+  t.classList.add("show");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove("show"), ms);
+};
+
+/* ---------- date defaults ---------- */
+(function setDefaults(){
+  const today = new Date().toISOString().slice(0,10);
+  $("jobDate").value = today;
+  $("signDate").value = today;
+})();
+
+/* ---------- AUTO-GENERATE JOB NUMBER ---------- */
+/* Format: EENV + YY + M (no leading zero) + DD (zero-padded)
+   e.g. 2026-05-04 -> EENV26504 ; 2026-06-03 -> EENV26603 ; 2026-12-25 -> EENV261225 */
+function genJobNumber(dateStr) {
+  const today = dateStr || new Date().toISOString().slice(0, 10);
+  const parts = today.split("-").map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return "";
+  const [y, m, d] = parts;
+  const yy = String(y).slice(-2).padStart(2, "0");
+  return `EENV${yy}${m}${String(d).padStart(2, "0")}`;
+}
+let _lastAutoJob = "";
+function syncJobNumber() {
+  const jobInp = $("jobNumber");
+  if (!jobInp) return;
+  // Only auto-fill if blank or still matching the last auto value (i.e. user hasn't manually edited)
+  if (!jobInp.value.trim() || jobInp.value.trim() === _lastAutoJob) {
+    _lastAutoJob = genJobNumber($("jobDate").value);
+    jobInp.value = _lastAutoJob;
+  }
+}
+$("jobDate").addEventListener("change", syncJobNumber);
+$("jobDate").addEventListener("input",  syncJobNumber);
+// Initial population on load
+syncJobNumber();
+
+/* ---------- LABOR ROWS ---------- */
+const laborBody = $("laborBody");
+function laborOptions(selectedId){
+  let html = '<option value="">— Select Employee —</option>';
+  EMPLOYEES.forEach(e => {
+    html += `<option value="${e.id}" ${selectedId == e.id ? "selected" : ""}>${e.name}</option>`;
+  });
+  return html;
+}
+function addLaborRow(){
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td class="row-num"></td>
+    <td>
+      <select class="lab-emp">${laborOptions()}</select>
+    </td>
+    <td class="num"><input type="number" step="0.01" min="0" class="lab-rate" value="120.00" /></td>
+    <td class="num"><input type="number" step="0.25" min="0" class="lab-hours" placeholder="0" /></td>
+    <td class="row-total lab-total">$0.00</td>
+    <td><button class="remove-btn" type="button" title="Remove">×</button></td>
+  `;
+  laborBody.appendChild(tr);
+  // wire events
+  tr.querySelector(".lab-emp").addEventListener("change", (e) => {
+    const id = Number(e.target.value);
+    const emp = EMPLOYEES.find(x => x.id === id);
+    if (emp) tr.querySelector(".lab-rate").value = emp.rate.toFixed(2);
+    recalc();
+  });
+  tr.querySelector(".lab-rate").addEventListener("input", recalc);
+  tr.querySelector(".lab-hours").addEventListener("input", recalc);
+  tr.querySelector(".remove-btn").addEventListener("click", () => {
+    tr.remove(); renumber(); recalc();
+  });
+  renumber(); recalc();
+}
+
+/* ---------- MATERIAL ROWS ---------- */
+const matBody = $("matBody");
+function addMatRow(){
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td class="row-num"></td>
+    <td class="photo-cell">
+      <label class="photo-trigger" title="Add photo">
+        <span class="ph-placeholder">+ photo</span>
+        <input type="file" class="mat-photo" accept="image/*" capture="environment" />
+      </label>
+    </td>
+    <td class="num"><input type="number" step="1" min="0" class="mat-qty" placeholder="0" /></td>
+    <td><input type="text" class="mat-name" placeholder="Material / description" /></td>
+    <td class="num"><input type="number" step="0.01" min="0" class="mat-cost" placeholder="0.00" /></td>
+    <td class="row-total mat-total">$0.00</td>
+    <td><button class="remove-btn" type="button" title="Remove">×</button></td>
+  `;
+  matBody.appendChild(tr);
+  // wire events
+  tr.querySelector(".mat-qty").addEventListener("input", recalc);
+  tr.querySelector(".mat-cost").addEventListener("input", recalc);
+  tr.querySelector(".remove-btn").addEventListener("click", () => {
+    tr.remove(); renumber(); recalc();
+  });
+  // photo preview
+  tr.querySelector(".mat-photo").addEventListener("change", (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const trigger = tr.querySelector(".photo-trigger");
+      trigger.innerHTML = `<img src="${e.target.result}" alt="material photo" />`;
+      // re-add a hidden input for re-selection? leave as-is for simplicity
+    };
+    reader.readAsDataURL(file);
+  });
+  renumber();
+}
+
+/* ---------- renumber rows ---------- */
+function renumber(){
+  Array.from(laborBody.querySelectorAll("tr")).forEach((tr, i) => {
+    tr.querySelector(".row-num").textContent = (i+1);
+  });
+  Array.from(matBody.querySelectorAll("tr")).forEach((tr, i) => {
+    tr.querySelector(".row-num").textContent = (i+1);
+  });
+}
+
+/* ---------- recalc totals ---------- */
+function recalc(){
+  // labor
+  let laborSub = 0;
+  laborBody.querySelectorAll("tr").forEach(tr => {
+    const rate = Number(tr.querySelector(".lab-rate").value) || 0;
+    const hrs  = Number(tr.querySelector(".lab-hours").value) || 0;
+    const line = rate * hrs;
+    tr.querySelector(".lab-total").textContent = fmt(line);
+    laborSub += line;
+  });
+  // materials
+  let matSub = 0;
+  matBody.querySelectorAll("tr").forEach(tr => {
+    const qty  = Number(tr.querySelector(".mat-qty").value)  || 0;
+    const cost = Number(tr.querySelector(".mat-cost").value) || 0;
+    const line = qty * cost;
+    tr.querySelector(".mat-total").textContent = fmt(line);
+    matSub += line;
+  });
+  const markupPct = (Number($("markupRate").value) || 0) / 100;
+  const matMarkup = matSub * markupPct;
+  const matTotal  = matSub + matMarkup;
+  const subtotal  = laborSub + matTotal;
+  const grand     = subtotal;
+
+  $("laborSub").textContent  = fmt(laborSub);
+  $("matSub").textContent    = fmt(matSub);
+  $("matMarkup").textContent = fmt(matMarkup);
+  $("grandTotal").textContent= fmt(grand);
+}
+
+/* ---------- SIGNATURE PAD ---------- */
+(function sigPad(){
+  const canvas = $("sigPad");
+  const ctx = canvas.getContext("2d");
+  function resize(){
+    const ratio = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width  = rect.width  * ratio;
+    canvas.height = rect.height * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#111";
+  }
+  setTimeout(resize, 50);
+  window.addEventListener("resize", () => {
+    // preserve previous signature when resizing
+    const data = canvas.toDataURL();
+    resize();
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0, canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height);
+    img.src = data;
+  });
+
+  let drawing = false;
+  function pos(e){
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches && e.touches[0]) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+  function start(e){ drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+  function move(e){ if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); e.preventDefault(); }
+  function end(){ drawing = false; }
+
+  canvas.addEventListener("mousedown", start);
+  canvas.addEventListener("mousemove", move);
+  window.addEventListener("mouseup", end);
+  canvas.addEventListener("touchstart", start, { passive:false });
+  canvas.addEventListener("touchmove",  move,  { passive:false });
+  canvas.addEventListener("touchend",   end);
+
+  $("clearSigBtn").addEventListener("click", () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  });
+})();
+
+/* ---------- TEXTAREA AUTO-GROW ---------- */
+function autosize(ta){
+  ta.style.height = "auto";
+  ta.style.height = (ta.scrollHeight + 2) + "px";
+}
+document.querySelectorAll("textarea").forEach(ta => {
+  ta.addEventListener("input", () => autosize(ta));
+  // Also size on load if there's default content
+  if (ta.value) autosize(ta);
+});
+
+/* ---------- SITE PHOTOS ---------- */
+const photoGrid = $("photoGrid");
+$("addPhotoBtn").addEventListener("click", () => $("photoFileInput").click());
+$("photoFileInput").addEventListener("change", (ev) => {
+  const files = Array.from(ev.target.files || []);
+  files.forEach(file => {
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = (e) => addPhotoCard(e.target.result);
+    reader.readAsDataURL(file);
+  });
+  ev.target.value = ""; // allow re-selecting same file
+});
+function addPhotoCard(dataUrl, caption=""){
+  const card = document.createElement("div");
+  card.className = "photo-card";
+  card.innerHTML = `
+    <button type="button" class="photo-remove" title="Remove">×</button>
+    <img alt="site photo" />
+    <input type="text" class="cap-input" placeholder="Caption (optional)" />
+  `;
+  card.querySelector("img").src = dataUrl;
+  if (caption) card.querySelector(".cap-input").value = caption;
+  card.querySelector(".photo-remove").addEventListener("click", () => card.remove());
+  photoGrid.appendChild(card);
+}
+
+/* ---------- INITIAL ROWS ---------- */
+addLaborRow();
+addMatRow();
+
+/* ---------- LISTENERS ---------- */
+$("addLaborBtn").addEventListener("click", addLaborRow);
+$("addMatBtn").addEventListener("click",  addMatRow);
+$("markupRate").addEventListener("input", recalc);
+
+/* ---------- LOGO REPLACE ---------- */
+$("logoBtn").addEventListener("click", () => $("logoInput").click());
+$("logoInput").addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const dataUrl = ev.target.result;
+    // Replace whatever is in the brand slot's first child (svg or img) with the new <img>
+    const slot = $("brandSlot");
+    const existing = slot.querySelector(".brand-mark");
+    const img = document.createElement("img");
+    img.src = dataUrl;
+    img.className = "brand-mark";
+    img.id = "logoImg";
+    img.alt = "Empire Electric logo";
+    img.style.objectFit = "contain";
+    if (existing) existing.replaceWith(img); else slot.prepend(img);
+    showToast("Logo updated. Click <strong>Save Branded Copy</strong> to keep it permanently.", 3500);
+  };
+  reader.readAsDataURL(file);
+});
+
+/* ---------- SAVE BRANDED COPY ---------- */
+/*  Re-serializes the current page (with embedded logo + current tax rate)
+    so the user gets back a self-contained HTML file with their logo baked in. */
+$("saveCopyBtn").addEventListener("click", () => {
+  // Clone the document so we can clean it before serializing
+  const clone = document.documentElement.cloneNode(true);
+  // Strip ephemeral state: clear all inputs, signature, photos
+  clone.querySelectorAll("input, textarea").forEach(el => {
+    if (el.id === "markupRate") return;          // keep markup rate
+    if (el.id === "logoInput") return;          // keep file input markup
+    if (el.type === "file") { el.value = ""; return; }
+    if (el.type === "checkbox" || el.type === "radio") { el.checked = false; return; }
+    el.removeAttribute("value");
+    if (el.tagName === "INPUT") el.value = "";
+    if (el.tagName === "TEXTAREA") el.textContent = "";
+  });
+  // Reset labor & material rows to empty (one each)
+  const lb = clone.querySelector("#laborBody"); if (lb) lb.innerHTML = "";
+  const mb = clone.querySelector("#matBody");   if (mb) mb.innerHTML = "";
+  // Keep the #toast element so notifications work in branded copies
+  // Persist the current markup rate as the new default
+  const mkEl = clone.querySelector("#markupRate");
+  if (mkEl) mkEl.setAttribute("value", $("markupRate").value);
+
+  const html = "<!DOCTYPE html>\n" + clone.outerHTML;
+  const blob = new Blob([html], { type: "text/html" });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "atw-time-material-form.html";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 200);
+  showToast("Branded copy downloaded. Use this version going forward.", 3000);
+});
+
+/* ---------- RESET ---------- */
+$("resetBtn").addEventListener("click", () => {
+  if (!confirm("Clear the entire form? This cannot be undone.")) return;
+  document.querySelectorAll("input, textarea, select").forEach(el => {
+    if (el.type === "file") return;
+    if (el.id === "taxRate") return;
+    if (el.tagName === "SELECT") el.selectedIndex = 0;
+    else el.value = "";
+  });
+  laborBody.innerHTML = "";
+  matBody.innerHTML = "";
+  addLaborRow();
+  addMatRow();
+  // reset signature
+  const c = $("sigPad");
+  c.getContext("2d").clearRect(0,0,c.width,c.height);
+  // re-default dates
+  const today = new Date().toISOString().slice(0,10);
+  $("jobDate").value = today;
+  $("signDate").value = today;
+  recalc();
+  showToast("Form cleared");
+});
+
+/* ---------- PRINT / SAVE AS PDF ---------- */
+/* Uses the browser native print dialog. On iOS the user taps "Save to Files",
+   on macOS "Save as PDF", on Windows/Android "Save as PDF" or "Microsoft Print to PDF".
+   This avoids html2canvas' mobile rendering bugs and produces pixel-perfect output. */
+$("generateBtn").addEventListener("click", () => {
+  // Use just the job number as the document title — browsers use this as the
+  // default PDF filename, so the saved file ends up named e.g. "EENV26504.pdf".
+  const job = ($("jobNumber").value || "Empire-Job").trim().replace(/[^a-zA-Z0-9_-]/g,"") || "Empire-Job";
+  const oldTitle = document.title;
+  document.title = job;
+  // Restore the title after the print dialog closes (so future PDFs get the right name).
+  const restore = () => {
+    document.title = oldTitle;
+    window.removeEventListener("afterprint", restore);
+  };
+  window.addEventListener("afterprint", restore);
+  // Brief delay so any pending re-renders finish first.
+  setTimeout(() => window.print(), 50);
+});
+
+/* ---------- EMAIL CUSTOMER ---------- */
+/* Opens the user's default email app pre-filled. They attach the just-saved PDF. */
+$("emailBtn").addEventListener("click", () => {
+  const job   = ($("jobNumber").value || "JOB").trim();
+  const cust  = ($("custName").value || "Customer").trim();
+  const date  = $("jobDate").value || new Date().toISOString().slice(0,10);
+  const total = $("grandTotal").textContent;
+  const to    = encodeURIComponent($("custEmail").value || "");
+  const subject = encodeURIComponent(`Empire Electric Time & Material — Job ${job} — ${cust}`);
+  const body  = encodeURIComponent(
+    `Hello,\n\n` +
+    `Please find attached the Time & Material report for Job ${job}, dated ${date}.\n\n` +
+    `Grand Total: ${total}\n\n` +
+    `Thank you for choosing Empire Electric.\n\n` +
+    `— Empire Electric\ninfo@empireelectricnv.com`
+  );
+  window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+});
+/* ---------- TEXTAREA <-> DIV SWAP FOR PRINTING ---------- */
+/* Textareas don't reliably grow to their content in print, so before printing
+   we replace each one with a <div> containing the same text (which sits in
+   normal flow and naturally takes its content height). After printing we
+   restore the textarea. The swap is guarded so that if multiple print events
+   fire (beforeprint + matchMedia change can both fire on some browsers), we
+   never insert duplicate twins. */
+(function setupPrintSwap() {
+  let twins = [];
+  let swapped = false;
+
+  function swapToDivs() {
+    if (swapped) return;          // already swapped — don't duplicate
+    swapped = true;
+    twins = [];
+    document.querySelectorAll(".section textarea, .field textarea").forEach(ta => {
+      if (ta.style.display === "none") return;   // safety: skip if somehow already hidden
+      const div = document.createElement("div");
+      div.className = "print-twin";
+      div.style.cssText = "white-space: pre-wrap; font: inherit; line-height: 1.45; min-height: 1em; padding: 4px 0; color:#000; word-wrap: break-word;";
+      div.textContent = ta.value || "—";
+      ta.style.display = "none";
+      ta.parentNode.insertBefore(div, ta.nextSibling);
+      twins.push({ ta, div });
+    });
+  }
+  function unswap() {
+    // Remove tracked twins
+    twins.forEach(({ ta, div }) => {
+      if (div && div.parentNode) div.remove();
+      if (ta) ta.style.display = "";
+    });
+    twins = [];
+    // Defensive: scrub any orphan twins (in case state got out of sync)
+    document.querySelectorAll(".print-twin").forEach(el => el.remove());
+    // Make sure all textareas are visible again
+    document.querySelectorAll(".section textarea, .field textarea").forEach(ta => {
+      if (ta.style.display === "none") ta.style.display = "";
+    });
+    swapped = false;
+  }
+
+  window.addEventListener("beforeprint", swapToDivs);
+  window.addEventListener("afterprint",  unswap);
+
+  // matchMedia fallback for older Safari that doesn't fire beforeprint
+  if (window.matchMedia) {
+    const mql = window.matchMedia("print");
+    const handler = (e) => { e.matches ? swapToDivs() : unswap(); };
+    if (mql.addEventListener) mql.addEventListener("change", handler);
+    else if (mql.addListener) mql.addListener(handler);
+  }
+})();
+
+/* initial calc */
+recalc();
+</script>
+
+
+</body></html>
