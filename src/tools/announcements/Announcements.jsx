@@ -6,6 +6,33 @@ import { Icon, Modal, Avatar, pushNotification } from "../../ui.jsx"
 import { timeAgo } from "../../photos.js"
 import { fmtDateTime } from "../../util.js"
 
+// Attachments share the private "resources" bucket (admins upload, crew can open).
+const BUCKET = "resources"
+const MAX_MB = 50
+const kb = (n) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round((n || 0) / 1024))} KB`)
+const ext = (name) => (name.includes(".") ? name.split(".").pop().toUpperCase().slice(0, 4) : "FILE")
+
+async function openFile(f) {
+  const w = window.open("", "_blank")   // open first so phones don't block the popup
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(f.path, 3600)
+  if (error || !data) { w?.close(); return alert("Couldn't open that file. Try again.") }
+  if (w) w.location = data.signedUrl; else window.location.href = data.signedUrl
+}
+
+function FileChip({ f, onClick, onRemove }) {
+  return (
+    <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", border: `1px solid ${BORDER}`, borderRadius: 12, background: "#fff", cursor: onClick ? "pointer" : "default", minWidth: 0 }}>
+      <div style={{ width: 36, height: 36, borderRadius: 9, background: GSOFT, color: GD, fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{ext(f.name)}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</div>
+        <div style={{ fontSize: 12, color: MUTED }}>{kb(f.size)}{onClick ? " · Tap to open" : ""}</div>
+      </div>
+      {onClick && <Icon name="external" size={15} color={FAINT} />}
+      {onRemove && <button title="Remove file" type="button" style={{ ...s.btnGhost, padding: 6 }} onClick={(e) => { e.stopPropagation(); onRemove() }}><Icon name="x" size={14} color={FAINT} /></button>}
+    </div>
+  )
+}
+
 export default function Announcements({ user }) {
   const [items, setItems] = useState([])
   const [reads, setReads] = useState([])          // admins: everyone's; crew: their own
@@ -39,7 +66,13 @@ export default function Announcements({ user }) {
     await supabase.from("announcement_reads").insert({ announcement_id: a.id, employee_id: user.id })
   }
   const togglePin = async (a) => { await supabase.from("announcements").update({ pinned: !a.pinned }).eq("id", a.id); load() }
-  const remove = async (a) => { if (!window.confirm(`Delete "${a.title}"? Comments and confirmations go with it.`)) return; await supabase.from("announcements").delete().eq("id", a.id); load() }
+  const remove = async (a) => {
+    if (!window.confirm(`Delete "${a.title}"? Comments, confirmations, and attached files go with it.`)) return
+    await supabase.from("announcements").delete().eq("id", a.id)
+    const paths = (a.attachments || []).map((f) => f.path)
+    if (paths.length) await supabase.storage.from(BUCKET).remove(paths)
+    load()
+  }
 
   return (
     <div>
@@ -97,6 +130,11 @@ function AnnouncementCard({ a, user, crew, reads, commentCount, onConfirm, onEdi
           )}
         </div>
         {a.body && <div style={{ fontSize: 15, lineHeight: 1.6, color: TEXT, whiteSpace: "pre-wrap", marginTop: 12 }}>{a.body}</div>}
+        {(a.attachments || []).length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 260px), 1fr))", gap: 8, marginTop: 14 }}>
+            {a.attachments.map((f) => <FileChip key={f.path} f={f} onClick={() => openFile(f)} />)}
+          </div>
+        )}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "10px 16px", borderTop: `1px solid ${BG}`, background: "#FBFBFA" }}>
@@ -163,16 +201,40 @@ function Comments({ a, user, onChange }) {
 
 function Composer({ a, user, onClose, onSaved }) {
   const [f, setF] = useState({ title: a.title || "", body: a.body || "", pinned: !!a.pinned })
-  const [err, setErr] = useState(""); const [busy, setBusy] = useState(false)
+  const [kept, setKept] = useState(a.attachments || [])   // files already on the post
+  const [files, setFiles] = useState([])                  // new files picked this time
+  const [err, setErr] = useState(""); const [busy, setBusy] = useState("")
+  const addFiles = (list) => {
+    const picked = Array.from(list || []), big = picked.filter((x) => x.size > MAX_MB * 1048576)
+    if (big.length) setErr(`${big.map((x) => x.name).join(", ")} ${big.length > 1 ? "are" : "is"} over ${MAX_MB} MB.`)
+    setFiles((cur) => [...cur, ...picked.filter((x) => x.size <= MAX_MB * 1048576)])
+  }
   const save = async () => {
     if (!f.title.trim()) return setErr("Give it a title.")
-    setBusy(true)
-    const rec = { title: f.title.trim(), body: f.body.trim(), pinned: f.pinned, updated_at: new Date().toISOString() }
+    setErr("")
+    const uploaded = []
+    for (const [i, file] of files.entries()) {
+      setBusy(files.length > 1 ? `Uploading ${i + 1} of ${files.length}…` : "Uploading…")
+      const path = `announcements/${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${file.name.replace(/[^\w.\-]+/g, "_")}`
+      const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type || "application/octet-stream" })
+      if (error) {
+        if (uploaded.length) await supabase.storage.from(BUCKET).remove(uploaded.map((u) => u.path))
+        setBusy(""); return setErr(`Couldn't upload ${file.name}. Check your connection and try again.`)
+      }
+      uploaded.push({ path, name: file.name, size: file.size, type: file.type || "" })
+    }
+    setBusy("Saving…")
+    const rec = { title: f.title.trim(), body: f.body.trim(), pinned: f.pinned, attachments: [...kept, ...uploaded], updated_at: new Date().toISOString() }
     const { error } = a.id
       ? await supabase.from("announcements").update(rec).eq("id", a.id)
       : await supabase.from("announcements").insert({ ...rec, author_id: user.id, author_name: user.name })
-    setBusy(false)
-    if (error) return setErr("Couldn't save. Try again.")
+    setBusy("")
+    if (error) {
+      if (uploaded.length) await supabase.storage.from(BUCKET).remove(uploaded.map((u) => u.path))
+      return setErr("Couldn't save. Try again.")
+    }
+    const dropped = (a.attachments || []).filter((x) => !kept.some((k) => k.path === x.path)).map((x) => x.path)
+    if (dropped.length) await supabase.storage.from(BUCKET).remove(dropped)
     if (!a.id) pushNotification("New announcement", rec.title)
     onSaved()
   }
@@ -181,11 +243,23 @@ function Composer({ a, user, onClose, onSaved }) {
       {err && <div style={s.alert("error")}>{err}</div>}
       <div style={s.field}><label style={s.label}>Title</label><input style={s.input} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="e.g. Safety meeting Monday 7:00 AM at the shop" /></div>
       <div style={s.field}><label style={s.label}>Details</label><textarea style={{ ...s.textarea, minHeight: 150 }} value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} placeholder="What the crew needs to know…" /></div>
+      <div style={s.field}>
+        <label style={s.label}>Attachments</label>
+        <div style={{ display: "grid", gap: 8 }}>
+          {kept.map((x) => <FileChip key={x.path} f={x} onRemove={() => setKept((k) => k.filter((y) => y.path !== x.path))} />)}
+          {files.map((x, i) => <FileChip key={i + x.name} f={{ name: x.name, size: x.size }} onRemove={() => setFiles((cur) => cur.filter((_, j) => j !== i))} />)}
+          <label style={{ ...s.btnSecondary, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, cursor: "pointer" }}>
+            <Icon name="upload" size={14} /> {kept.length + files.length ? "Add another file" : "Attach a file (handbook, PDF, image, doc…)"}
+            <input type="file" multiple style={{ display: "none" }} onChange={(e) => { addFiles(e.target.files); e.target.value = "" }} />
+          </label>
+        </div>
+        <div style={{ fontSize: 12, color: FAINT, marginTop: 6 }}>Up to {MAX_MB} MB each. Only signed-in Empire crew can open them.</div>
+      </div>
       <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600, marginBottom: 18 }}><input type="checkbox" checked={f.pinned} onChange={(e) => setF({ ...f, pinned: e.target.checked })} /> Pin to the top</label>
       {a.id && <div style={{ fontSize: 12, color: MUTED, marginBottom: 14 }}>Editing keeps existing confirmations. For a change the crew must re-confirm, post a new announcement.</div>}
       <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
         <button style={s.btnSecondary} onClick={onClose}>Cancel</button>
-        <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 22px" }} onClick={save} disabled={busy}>{busy ? "Saving…" : a.id ? "Save" : "Post"}</button>
+        <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 22px" }} onClick={save} disabled={!!busy}>{busy || (a.id ? "Save" : "Post")}</button>
       </div>
     </Modal>
   )

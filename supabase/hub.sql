@@ -163,3 +163,7 @@ create policy job_photos_delete on storage.objects for delete to authenticated
   using (bucket_id = 'job-photos' and (owner_id = auth.uid()::text or public.is_admin()));
 
 alter publication supabase_realtime add table public.job_updates, public.job_update_comments, public.job_update_likes;
+
+-- Files attached to an announcement (handbook, policy, flyer). [{ path, name, size, type }]
+-- Files live in the private "resources" bucket under announcements/: admins upload, active crew can open.
+alter table public.announcements add column if not exists attachments jsonb not null default '[]'::jsonb;
