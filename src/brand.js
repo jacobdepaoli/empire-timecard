@@ -6,9 +6,9 @@ export const BRAND = {
   company: "Empire Electric",
   tagline: "Electrical & Integrated Technology",
   emailDomain: "empireelectricnv.com",
-  addr: "",
+  addr: "19 Glen Carran Circle, Sparks, NV 89431",
   phone: "",
-  email: "",
+  email: "info@empireelectric.com",
   // T&M / job number prefix: EENV + YY + M + DD  (2026-10-31 → EENV261031)
   jobPrefix: "EENV",
 }
