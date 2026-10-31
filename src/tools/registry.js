@@ -7,10 +7,12 @@ import TimeCardTool from "./timecard/TimeCard.jsx"
 import JobsTool from "./jobs/JobsTool.jsx"
 import Announcements from "./announcements/Announcements.jsx"
 import Resources from "./resources/Resources.jsx"
+import Crew from "./crew/Crew.jsx"
 
 export const TOOLS = [
   { id: "timecard",      name: "TimeCard",      icon: "clock",     desc: "Clock in and out, timecards, T&M sheets", component: TimeCardTool, fullScreen: true },
   { id: "jobs",          name: "Jobs",          icon: "briefcase", desc: "Job info, progress photos, and updates",  component: JobsTool },
   { id: "announcements", name: "Announcements", icon: "megaphone", desc: "Company news and reminders",              component: Announcements },
   { id: "resources",     name: "Resources",     icon: "folder",    desc: "Safety docs, forms, spec sheets, links",  component: Resources },
+  { id: "crew",          name: "The Crew",      icon: "users",     desc: "Profiles, birthdays, who's who",          component: Crew },
 ]

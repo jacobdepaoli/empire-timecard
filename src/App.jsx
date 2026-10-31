@@ -7,7 +7,7 @@ import { Login, ChangePassword } from "./auth.jsx"
 import { useRoute, go } from "./router.js"
 import { Home, ToolShell } from "./Shell.jsx"
 import { TOOLS } from "./tools/registry.js"
-import { Profile } from "./tools/timecard/TimeCard.jsx"
+import { MyProfile } from "./tools/crew/Crew.jsx"
 
 export default function App() {
   const [user, setUser] = useState(null)
@@ -44,7 +44,7 @@ export default function App() {
   if (user.must_change_password) return <ChangePassword user={user} onDone={setUser} />
 
   const [toolId] = route
-  if (toolId === "profile") return <ToolShell user={user} title="My Profile" icon="user"><Profile user={user} setUser={setUser} /></ToolShell>
+  if (toolId === "profile") return <ToolShell user={user} title="My Profile" icon="user"><MyProfile user={user} setUser={setUser} /></ToolShell>
 
   const tool = TOOLS.find((t) => t.id === toolId && (!t.adminOnly || user.is_admin))
   if (!tool) return <Home user={user} onLogout={logout} />

@@ -67,16 +67,17 @@ export default function Announcements({ user }) {
 
 function AnnouncementCard({ a, user, crew, reads, commentCount, onConfirm, onEdit, onPin, onDelete, onComment }) {
   const [showReads, setShowReads] = useState(false)
-  const [showComments, setShowComments] = useState(false)
+  const [showComments, setShowComments] = useState(a.kind === "celebration")
   const mine = reads.find((r) => r.employee_id === user.id)
   const isAuthor = a.author_id === user.id
   const expected = crew.filter((c) => c.id !== a.author_id)
   const seenIds = new Set(reads.map((r) => r.employee_id))
   const seen = expected.filter((c) => seenIds.has(c.id)), notYet = expected.filter((c) => !seenIds.has(c.id))
-  const needsAck = !isAuthor && !mine
+  const party = a.kind === "celebration"
+  const needsAck = !party && !isAuthor && !mine
 
   return (
-    <div style={{ ...s.card, borderLeft: `4px solid ${a.pinned ? WARN : needsAck ? G : BORDER}`, padding: 0, overflow: "hidden" }}>
+    <div style={{ ...s.card, borderLeft: `4px solid ${a.pinned ? WARN : needsAck || party ? G : BORDER}`, padding: 0, overflow: "hidden", ...(party ? { background: "linear-gradient(135deg, #F1F9F1, #FFFFFF 60%)" } : {}) }}>
       <div style={{ padding: "18px 20px 14px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
           <div style={{ minWidth: 0 }}>
@@ -101,8 +102,8 @@ function AnnouncementCard({ a, user, crew, reads, commentCount, onConfirm, onEdi
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "10px 16px", borderTop: `1px solid ${BG}`, background: "#FBFBFA" }}>
         {needsAck && <button style={{ ...s.btnPrimary, width: "auto", padding: "9px 18px", display: "flex", alignItems: "center", gap: 6 }} onClick={onConfirm}><Icon name="check" size={15} color="#fff" /> Got it</button>}
         {mine && <span style={{ fontSize: 12, color: GD, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}><Icon name="check" size={13} color={GD} /> You confirmed {timeAgo(mine.read_at)}</span>}
-        <button style={{ ...s.btnGhost, display: "flex", alignItems: "center", gap: 6 }} onClick={() => setShowComments((v) => !v)}><Icon name="message" size={14} /> {commentCount ? `${commentCount} comment${commentCount > 1 ? "s" : ""}` : "Comment"}</button>
-        {user.is_admin && expected.length > 0 && (
+        <button style={{ ...s.btnGhost, display: "flex", alignItems: "center", gap: 6 }} onClick={() => setShowComments((v) => !v)}><Icon name="message" size={14} /> {commentCount ? `${commentCount} comment${commentCount > 1 ? "s" : ""}` : party ? "Send a note" : "Comment"}</button>
+        {user.is_admin && !party && expected.length > 0 && (
           <button style={{ ...s.btnGhost, marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, color: notYet.length ? WARN : GD }} onClick={() => setShowReads((v) => !v)}>
             <Icon name="eye" size={14} color={notYet.length ? WARN : GD} /> Seen by {seen.length} of {expected.length}
           </button>

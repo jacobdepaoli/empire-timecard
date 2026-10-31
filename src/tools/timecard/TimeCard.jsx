@@ -73,7 +73,7 @@ function Sidebar({ user, page, setPage, onHome, onLogout, notifPerm, setNotifPer
         </div>
         <div className="tc-side-divider" style={{ height: 1, background: "rgba(255,255,255,.08)", margin: "6px 6px 8px" }} />
         {nav.map((n) => (
-          <div key={n.id} style={s.navItem(page === n.id)} className="tc-navitem" onClick={() => setPage(n.id)}>
+          <div key={n.id} style={s.navItem(page === n.id)} className="tc-navitem" onClick={() => (n.id === "profile" ? (location.hash = "/profile") : setPage(n.id))}>
             <Icon name={n.icon} size={17} color={page === n.id ? GLIGHT : SIDE_MUTED} />
             <span style={{ flex: 1 }}>{n.label}</span>
             {n.badge > 0 && <span style={{ background: G, color: INK, fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 10, animation: "pulse 2s infinite" }}>{n.badge}</span>}

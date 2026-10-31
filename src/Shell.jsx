@@ -7,6 +7,7 @@ import { Logo, Icon, Avatar } from "./ui.jsx"
 import { go } from "./router.js"
 import { duration } from "./util.js"
 import { TOOLS } from "./tools/registry.js"
+import { upcomingCelebrations } from "./tools/crew/Crew.jsx"
 
 const wrap = { maxWidth: 1040, margin: "0 auto", padding: "0 clamp(14px,4vw,28px)" }
 
@@ -46,18 +47,19 @@ const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good 
 export function Home({ user, onLogout }) {
   const [badges, setBadges] = useState({})
   const [unread, setUnread] = useState(null)   // newest unconfirmed announcement
+  const [celebs, setCelebs] = useState([])
 
   useEffect(() => {
     let alive = true
     const load = async () => {
       const [{ data: anns }, { data: reads }, { data: open }] = await Promise.all([
-        supabase.from("announcements").select("id,title,author_id,created_at,pinned").order("created_at", { ascending: false }).limit(50),
+        supabase.from("announcements").select("id,title,author_id,created_at,pinned,kind").order("created_at", { ascending: false }).limit(50),
         supabase.from("announcement_reads").select("announcement_id").eq("employee_id", user.id),
         user.is_owner ? Promise.resolve({ data: null }) : supabase.from("time_logs").select("job_name,clock_in").eq("employee_id", user.id).is("clock_out", null).maybeSingle(),
       ])
       if (!alive) return
       const seen = new Set((reads || []).map((r) => r.announcement_id))
-      const todo = (anns || []).filter((a) => a.author_id !== user.id && !seen.has(a.id))
+      const todo = (anns || []).filter((a) => a.kind !== "celebration" && a.author_id !== user.id && !seen.has(a.id))
       setUnread(todo[0] || null)
       setBadges({
         announcements: todo.length ? { count: todo.length } : null,
@@ -65,6 +67,7 @@ export function Home({ user, onLogout }) {
       })
     }
     load()
+    supabase.rpc("crew_profiles").then(({ data }) => alive && setCelebs(upcomingCelebrations(data || [], 14)))
     const ch = supabase.channel("home-badges").on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, load).subscribe()
     const iv = setInterval(load, 60000)
     return () => { alive = false; clearInterval(iv); supabase.removeChannel(ch) }
@@ -92,6 +95,24 @@ export function Home({ user, onLogout }) {
               <div style={{ fontWeight: 800, color: INK, fontSize: 15, lineHeight: 1.3 }}>{unread.title}</div>
             </div>
             <Icon name="chevron" size={18} color={FAINT} />
+          </div>
+        )}
+
+        {celebs.length > 0 && (
+          <div style={{ ...s.card, marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: GD }}>Celebrations</div>
+              <button style={{ ...s.btnGhost, padding: "2px 4px", fontSize: 12 }} onClick={() => go("crew")}>See the crew</button>
+            </div>
+            {celebs.slice(0, 4).map((c) => (
+              <div key={c.id} onClick={() => go(c.inDays === 0 ? "announcements" : "crew")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", cursor: "pointer", borderTop: `1px solid ${BG}` }}>
+                <Avatar name={c.who.name} src={c.who.photo_url} size={38} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, color: INK, fontSize: 14 }}>{c.kind === "birthday" ? `🎂 ${c.first}'s birthday` : `🎉 ${c.first}: ${c.years} year${c.years === 1 ? "" : "s"} with the crew`}</div>
+                  <div style={{ fontSize: 12, color: c.inDays === 0 ? GD : MUTED, fontWeight: c.inDays === 0 ? 700 : 500 }}>{c.inDays === 0 ? "Today! Tap to send a note" : c.inDays === 1 ? `Tomorrow · ${c.label}` : `In ${c.inDays} days · ${c.label}`}</div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
