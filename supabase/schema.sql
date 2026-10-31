@@ -243,6 +243,9 @@ end $$;
 create trigger time_logs_guard before update on public.time_logs
   for each row execute function public.guard_time_log_update();
 
+-- Trigger functions fire on their own; nobody should call them directly.
+revoke all on function public.guard_employee_update(), public.guard_time_log_update() from public, anon, authenticated;
+
 -- ── Row Level Security ──────────────────────────────────────────────────────
 alter table public.employees      enable row level security;
 alter table public.customers      enable row level security;
