@@ -1,0 +1,20 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+.DS_Store
+.vercel
+.publish.env
+
+# Capacitor native build artifacts (the android/ and ios/ folders themselves
+# can be committed, but their build outputs should not be)
+android/app/build
+android/build
+android/.gradle
+android/local.properties
+android/app/release
+ios/App/build
+ios/App/Pods
+ios/App/output
+DerivedData

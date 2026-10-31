@@ -1,0 +1,12 @@
+{
+  "appId": "com.empireelectricnv.timecard",
+  "appName": "Empire TimeCard",
+  "webDir": "dist",
+  "server": {
+    "url": "https://empire-timecard.vercel.app",
+    "cleartext": false
+  },
+  "ios": {
+    "contentInset": "always"
+  }
+}

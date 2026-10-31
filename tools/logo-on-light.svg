@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="220" viewBox="0 0 980 220"><g transform="translate(10,10) scale(1.0)">
+  <rect x="0" y="0" width="200" height="200" rx="34" fill="#1C1B17" fill-opacity="1"/>
+  <rect x="46" y="44" width="26" height="112" fill="#FFFFFF"/>
+  <rect x="46" y="44" width="108" height="24" fill="#FFFFFF"/>
+  <rect x="46" y="132" width="108" height="24" fill="#FFFFFF"/>
+  <polygon points="72,86 128,86 116,99 152,99 104,127 115,112 72,112" fill="#4AA04A"/>
+</g><text x="250" y="118" font-family="Inter" font-weight="800" font-size="92" letter-spacing="6" fill="#1C1B17">EMPIRE</text>
+<text x="252" y="168" font-family="Inter" font-weight="700" font-size="44" letter-spacing="17" fill="#4AA04A">ELECTRIC</text><text x="254" y="206" font-family="Inter" font-weight="500" font-size="20" letter-spacing="5.5" fill="#5F5F5F">ELECTRICAL &amp; INTEGRATED TECHNOLOGY</text></svg>
