@@ -3,7 +3,7 @@
   "appName": "Empire TimeCard",
   "webDir": "dist",
   "server": {
-    "url": "https://empire-timecard.vercel.app",
+    "url": "https://www.empireelectricnv.app",
     "cleartext": false
   },
   "ios": {

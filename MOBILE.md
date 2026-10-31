@@ -5,7 +5,7 @@ Build the app once; future web changes you `git push` show up automatically — 
 
 - **App name:** Empire TimeCard
 - **App ID:** com.empireelectricnv.timecard
-- **Loads:** https://empire-timecard.vercel.app (update capacitor.config.json if the domain changes)
+- **Loads:** https://www.empireelectricnv.app (update capacitor.config.json if the domain changes)
 
 ---
 

@@ -28,7 +28,7 @@ async function requestNotificationPermission() {
 // variant: "light" = full logo for white backgrounds, "dark" = full logo for the dark sidebar, "icon" = E mark only
 function Logo({ height = 40, variant = "light", className = "" }) {
   const src = variant === "icon" ? "/brand/icon.svg" : variant === "dark" ? "/brand/logo-on-dark.svg" : "/brand/logo-on-light.svg"
-  return <img src={src} alt={BRAND.company} className={className} style={{ height, width: "auto", objectFit: "contain", display: "block" }} />
+  return <img src={src} alt={BRAND.company} className={className} style={{ height, width: "auto", maxWidth: "100%", objectFit: "contain", objectPosition: "left center", display: "block" }} />
 }
 
 const Icon = ({ name, size = 18, color = "currentColor", spin = false }) => {
@@ -1204,13 +1204,18 @@ function CrewMap() {
   }
   useEffect(() => {
     let alive = true
+    // Google calls this when it rejects the key (website not allowed, billing off, API not enabled).
+    window.gm_authFailure = () => setError(`Google rejected the Maps key for ${location.host}. In Google Cloud → Credentials, add https://${location.host}/* to the key's allowed websites, and make sure billing and the Maps JavaScript API are on.`)
     ;(async () => {
+      let maps
+      try { maps = await loadGoogleMaps() }
+      catch (e) { if (alive) setError(`Google Maps didn't load (${e.message}). A content blocker or network filter may be blocking maps.googleapis.com.`); return }
+      if (!alive) return
       try {
-        const maps = await loadGoogleMaps()
-        if (!alive) return
         mapObj.current = new maps.Map(mapEl.current, { center: DEFAULT_CENTER, zoom: 11, mapTypeControl: false, streetViewControl: false })
-        plot(maps, await load())
-      } catch (e) { setError("Could not load Google Maps. Check the API key and that the Maps JavaScript API is enabled.") }
+      } catch (e) { setError(`Map couldn't start: ${e.message}`); return }
+      try { plot(maps, await load()) }
+      catch (e) { setError(`Map loaded, but crew pins failed: ${e.message}`) }
     })()
     const iv = setInterval(async () => { if (window.google?.maps) plot(window.google.maps, await load()) }, 30000)
     return () => { alive = false; clearInterval(iv) }
