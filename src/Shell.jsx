@@ -53,13 +53,15 @@ export function Home({ user, onLogout }) {
     let alive = true
     const load = async () => {
       const d0 = new Date(), todayIso = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, "0")}-${String(d0.getDate()).padStart(2, "0")}`
-      const [{ data: anns }, { data: reads }, { data: open }, { data: sched }, pend] = await Promise.all([
+      const [{ data: anns }, { data: reads }, { data: open }, { data: sched }, pend, { data: inbox }] = await Promise.all([
         supabase.from("announcements").select("id,title,author_id,created_at,pinned,kind").order("created_at", { ascending: false }).limit(50),
         supabase.from("announcement_reads").select("announcement_id").eq("employee_id", user.id),
         user.is_owner ? Promise.resolve({ data: null }) : supabase.from("time_logs").select("job_name,clock_in").eq("employee_id", user.id).is("clock_out", null).maybeSingle(),
         supabase.from("schedule_entries").select("label,start_time,jobs(name)").eq("employee_id", user.id).eq("work_date", todayIso).order("start_time"),
         user.is_admin ? supabase.from("pto_requests").select("id", { count: "exact", head: true }).eq("status", "Pending") : Promise.resolve({ count: 0 }),
+        supabase.rpc("my_conversations"),
       ])
+      const unreadMsgs = (inbox || []).reduce((n, c) => n + (c.unread || 0), 0)
       const pendCount = pend?.count || 0
       if (!alive) return
       const seen = new Set((reads || []).map((r) => r.announcement_id))
@@ -70,11 +72,15 @@ export function Home({ user, onLogout }) {
         timecard: open ? { status: `On the clock · ${open.job_name}`, since: open.clock_in } : null,
         schedule: sched?.length ? { status: `Today: ${sched.map((x) => x.jobs?.name || x.label).join(", ")}` } : null,
         timeoff: pendCount ? { count: pendCount } : null,
+        messages: unreadMsgs ? { count: unreadMsgs } : null,
       })
     }
     load()
     supabase.rpc("crew_profiles").then(({ data }) => alive && setCelebs(upcomingCelebrations(data || [], 14)))
-    const ch = supabase.channel("home-badges").on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, load).subscribe()
+    const ch = supabase.channel("home-badges")
+      .on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, load)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, load)
+      .subscribe()
     const iv = setInterval(load, 60000)
     return () => { alive = false; clearInterval(iv); supabase.removeChannel(ch) }
   }, [user.id])

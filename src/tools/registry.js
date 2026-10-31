@@ -10,11 +10,13 @@ import Resources from "./resources/Resources.jsx"
 import Crew from "./crew/Crew.jsx"
 import Schedule from "./schedule/Schedule.jsx"
 import TimeOff from "./timeoff/TimeOff.jsx"
+import Messages from "./messages/Messages.jsx"
 
 export const TOOLS = [
   { id: "timecard",      name: "TimeCard",      icon: "clock",     desc: "Clock in and out, timecards, T&M sheets", component: TimeCardTool, fullScreen: true },
   { id: "schedule",      name: "Schedule",      icon: "calendar",  desc: "Who's on which job this week",            component: Schedule },
   { id: "jobs",          name: "Jobs",          icon: "briefcase", desc: "Job info, progress photos, and updates",  component: JobsTool },
+  { id: "messages",      name: "Messages",      icon: "message",   desc: "Crew chat and direct messages",           component: Messages },
   { id: "announcements", name: "Announcements", icon: "megaphone", desc: "Company news and reminders",              component: Announcements },
   { id: "resources",     name: "Resources",     icon: "folder",    desc: "Safety docs, forms, spec sheets, links",  component: Resources },
   { id: "timeoff",       name: "Time Off",      icon: "sun",       desc: "Request days off, see approvals",         component: TimeOff },

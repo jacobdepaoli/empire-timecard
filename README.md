@@ -1,7 +1,7 @@
 # Empire Hub
 
 One sign-in, then a suite of crew tools for **Empire Electric**: TimeCard, Jobs (progress feed),
-Announcements, and Resources. React + Vite on Vercel, Supabase for auth and data.
+Schedule, Messages, Announcements, Resources, Time Off, and The Crew. React + Vite on Vercel, Supabase for auth and data.
 
 ## Stack
 - `src/App.jsx` sign-in + routing (`#/tool/...`). `src/Shell.jsx` home screen and tool frame.
@@ -9,7 +9,7 @@ Announcements, and Resources. React + Vite on Vercel, Supabase for auth and data
 - `src/tools/timecard`, `jobs`, `announcements`, `resources` the tools. Shared UI in `src/ui.jsx`.
 - Branding lives in `src/brand.js` and `src/theme.js`.
 - `public/brand/` logo and icons (logo text is outlined, no font dependency).
-- `supabase/schema.sql` core tables, Row Level Security, helper functions. `supabase/hub.sql` announcements, resources, job feed.
+- `supabase/schema.sql` core tables, Row Level Security, helper functions. `supabase/hub.sql` announcements, resources, job feed; `profiles.sql` crew profiles + daily celebrations (pg_cron); `schedule.sql` time off, schedule, holidays; `messages.sql` channels + DMs.
 - `supabase/functions/admin-users` Edge Function for creating logins, resetting
   passwords, and changing login emails (uses the service role, never the browser).
 
