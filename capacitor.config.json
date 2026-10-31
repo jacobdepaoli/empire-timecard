@@ -1,6 +1,6 @@
 {
   "appId": "com.empireelectricnv.timecard",
-  "appName": "Empire TimeCard",
+  "appName": "Empire Hub",
   "webDir": "dist",
   "server": {
     "url": "https://www.empireelectricnv.app",

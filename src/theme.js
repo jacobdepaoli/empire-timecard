@@ -83,6 +83,7 @@ export const css = `
     }
     .tc-sidebar .tc-side-logo, .tc-sidebar .tc-side-foot { display: none !important; }
     .tc-mobile-brand { display: flex !important; }
+    .tc-side-divider { display: none !important; }
     .tc-navitem { box-shadow: none !important; }
     .tc-sidebar .tc-side-nav {
       display: flex !important; flex: 1 !important; flex-direction: row !important;

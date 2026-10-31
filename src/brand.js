@@ -2,9 +2,11 @@
 // Address / phone / email print on T&M work orders and pre-fill customer emails.
 // Leave a value "" to hide that line.
 export const BRAND = {
-  appName: "TimeCard",
+  hubName: "Empire Hub",     // the app as a whole (login, home screen, phone icon)
+  appName: "TimeCard",       // the time clock tool
   company: "Empire Electric",
   tagline: "Electrical & Integrated Technology",
+  loginTagline: "Thank you for all that you do!",   // shown on the sign-in screen
   emailDomain: "empireelectricnv.com",
   addr: "19 Glen Carran Circle, Sparks, NV 89431",
   phone: "",
