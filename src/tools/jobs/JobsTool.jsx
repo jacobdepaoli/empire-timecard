@@ -6,7 +6,7 @@ import { s, G, GD, GSOFT, INK, TEXT, MUTED, FAINT, BORDER, BG, PANEL, WARN, DANG
 import { Icon, Avatar } from "../../ui.jsx"
 import { Jobs } from "../timecard/TimeCard.jsx"
 import { go } from "../../router.js"
-import { uploadPhoto, signedUrls, timeAgo } from "../../photos.js"
+import { uploadPhoto, signedUrls, timeAgo, isLink } from "../../photos.js"
 
 const BUCKET = "job-photos"
 const MAX_PHOTOS = 10
@@ -143,7 +143,7 @@ function Post({ p, user, urls, likes, comments, onOpenPhoto, onChange }) {
   }
   const remove = async () => {
     if (!window.confirm("Delete this update and its photos?")) return
-    const paths = (p.photos || []).map((x) => x.path)
+    const paths = (p.photos || []).map((x) => x.path).filter((x) => !isLink(x))
     if (paths.length) await supabase.storage.from(BUCKET).remove(paths)
     await supabase.from("job_updates").delete().eq("id", p.id); onChange()
   }

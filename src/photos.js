@@ -25,9 +25,13 @@ export async function uploadPhoto(bucket, folder, file) {
 }
 
 // Signed links last an hour; cache them so scrolling doesn't re-request.
+// A "path" that is already a full https link (sample/demo photos) is used as-is.
 const cache = new Map()
+export const isLink = (p) => /^https?:\/\//.test(p || "")
 export async function signedUrls(bucket, paths) {
-  const now = Date.now(), need = paths.filter((p) => !(cache.get(bucket + p)?.exp > now))
+  const now = Date.now()
+  paths.filter(isLink).forEach((p) => cache.set(bucket + p, { url: p, exp: Infinity }))
+  const need = paths.filter((p) => !isLink(p) && !(cache.get(bucket + p)?.exp > now))
   if (need.length) {
     const { data } = await supabase.storage.from(bucket).createSignedUrls(need, 3600)
     ;(data || []).forEach((d) => d.signedUrl && cache.set(bucket + d.path, { url: d.signedUrl, exp: now + 3300 * 1000 }))
