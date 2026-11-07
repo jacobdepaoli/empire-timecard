@@ -129,3 +129,55 @@ create policy inv_tx_insert on public.inv_transactions for insert to authenticat
   );
 create policy inv_tx_update on public.inv_transactions for update to authenticated using (is_admin()) with check (is_admin());
 create policy inv_tx_delete on public.inv_transactions for delete to authenticated using (is_admin());
+
+-- ── 2026-11-07: standard categories, SKU numbering, field-crew movement rules ──
+-- (migration inventory_categories_and_field_rules; stocked items were remapped into these categories)
+create table if not exists public.inv_categories (
+  name text primary key,
+  sort int not null,
+  prefix text not null unique,
+  kind text not null default 'material' check (kind in ('material','tool','equipment','consumable','asset'))
+);
+insert into public.inv_categories (name, sort, prefix, kind) values
+  ('Wire & Cable', 10, 'WIR', 'material'), ('Conduit, Raceway & Fittings', 20, 'CON', 'material'),
+  ('Boxes & Enclosures', 30, 'BOX', 'material'), ('Wiring Devices & Plates', 40, 'DEV', 'material'),
+  ('Distribution & Circuit Protection', 50, 'DST', 'material'), ('Lighting & Controls', 60, 'LTG', 'material'),
+  ('Connectors, Grounding & Terminations', 70, 'CGT', 'material'), ('Strut, Supports & Fasteners', 80, 'SUP', 'material'),
+  ('Low Voltage & Data', 90, 'LVD', 'material'), ('Motor Controls & Industrial', 100, 'MCI', 'material'),
+  ('Tape, Labels & Consumables', 110, 'CNS', 'consumable'), ('Tools & Test Equipment', 120, 'TLS', 'tool'),
+  ('Safety & PPE', 130, 'SAF', 'equipment'), ('Shop & Office', 140, 'SHP', 'asset')
+on conflict (name) do nothing;
+alter table public.inv_categories enable row level security;
+revoke all on public.inv_categories from anon;
+create policy inv_cat_select on public.inv_categories for select to authenticated using (public.is_active_employee());
+create policy inv_cat_write on public.inv_categories for all to authenticated using (public.is_admin()) with check (public.is_admin());
+
+create or replace function public.inv_next_sku(p_category text) returns text
+language sql stable security definer set search_path = '' as $$
+  select c.prefix || '-' || lpad((coalesce(max(nullif(regexp_replace(i.sku, '^' || c.prefix || '-', ''), i.sku)::int), 0) + 1)::text, 3, '0')
+  from public.inv_categories c
+  left join public.inv_items i on i.sku ~ ('^' || c.prefix || '-[0-9]+$')
+  where c.name = p_category
+  group by c.prefix
+$$;
+revoke all on function public.inv_next_sku(text) from public, anon;
+grant execute on function public.inv_next_sku(text) to authenticated;
+
+alter table public.inv_items add column if not exists updated_at timestamptz not null default now();
+create or replace function public.inv_touch_item() returns trigger language plpgsql set search_path = '' as $$
+begin new.updated_at := now(); return new; end $$;
+drop trigger if exists inv_items_touch on public.inv_items;
+create trigger inv_items_touch before update on public.inv_items for each row execute function public.inv_touch_item();
+revoke all on function public.inv_touch_item() from public, anon, authenticated;
+
+drop policy if exists inv_tx_insert on public.inv_transactions;
+create policy inv_tx_insert on public.inv_transactions for insert to authenticated
+  with check (
+    public.is_admin() or (
+      public.is_active_employee() and employee_id = auth.uid() and qty > 0 and (
+        (type = 'issue'    and from_location_id is not null and to_location_id is null and job_id is not null) or
+        (type = 'transfer' and from_location_id is not null and to_location_id is not null and from_location_id <> to_location_id) or
+        (type = 'return'   and to_location_id is not null and from_location_id is null and job_id is not null)
+      )
+    )
+  );

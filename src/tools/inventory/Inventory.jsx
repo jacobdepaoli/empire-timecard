@@ -23,17 +23,21 @@ export default function Inventory({ user, route }) {
   const [stock, setStock] = useState([])        // rows from inv_stock view: {item_id, location_id, qty}
   const [locations, setLocations] = useState([])
   const [jobs, setJobs] = useState([])
+  const [cats, setCats] = useState([])            // standard categories, in display order
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)       // {kind, item?}
 
   const load = async () => {
-    const [{ data: it }, { data: st }, { data: loc }, { data: jb }] = await Promise.all([
+    const [{ data: it }, { data: st }, { data: loc }, { data: jb }, { data: ct }] = await Promise.all([
       supabase.from("inv_items").select("*").eq("active", true).order("category").order("name"),
       supabase.from("inv_stock").select("*"),
       supabase.from("inv_locations").select("*").eq("active", true).order("kind").order("name"),
       supabase.from("jobs").select("id,name,status,is_service").order("name"),
+      supabase.from("inv_categories").select("*").order("sort"),
     ])
-    setItems(it || []); setStock(st || []); setLocations(loc || []); setJobs(jb || [])
+    const order = Object.fromEntries((ct || []).map((c) => [c.name, c.sort]))
+    const sorted = (it || []).slice().sort((a, b) => (order[a.category] ?? 999) - (order[b.category] ?? 999) || (a.family || "").localeCompare(b.family || "") || a.name.localeCompare(b.name))
+    setItems(sorted); setStock(st || []); setLocations(loc || []); setJobs(jb || []); setCats((ct || []).map((c) => c.name))
     setLoading(false)
   }
   useEffect(() => { load() }, [])
@@ -93,10 +97,10 @@ export default function Inventory({ user, route }) {
       {tab === "reorder"
         ? <ItemTable rows={reorder} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} empty="Nothing is below its reorder point. Nice." showMin />
         : tab === "catalog"
-        ? <Catalog items={items} onHand={onHandByItem} isAdmin={user.is_admin} onOpen={(it) => setModal({ kind: "item", item: it })} />
-        : <StockTab items={stocked} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} onImport={() => setModal({ kind: "import" })} isAdmin={user.is_admin} />}
+        ? <Catalog items={items} cats={cats} onHand={onHandByItem} isAdmin={user.is_admin} onOpen={(it) => setModal({ kind: "item", item: it })} />
+        : <StockTab items={stocked} cats={cats} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} onImport={() => setModal({ kind: "import" })} isAdmin={user.is_admin} />}
 
-      {modal?.kind === "item" && <ItemModal item={modal.item} user={user} stock={stock} locName={locName} locations={locations} jobs={jobs} onClose={() => setModal(null)} onChanged={() => { setModal(null); load() }} onAction={(kind) => setModal({ kind, item: modal.item })} />}
+      {modal?.kind === "item" && <ItemModal item={modal.item} cats={cats} user={user} stock={stock} locName={locName} locations={locations} jobs={jobs} onClose={() => setModal(null)} onChanged={() => { setModal(null); load() }} onAction={(kind) => setModal({ kind, item: modal.item })} />}
       {modal?.kind === "issue" && <MoveModal mode="issue" user={user} items={stocked} locations={locations} jobs={jobs} onHand={onHandByItem} stock={stock} preItem={modal.item} onClose={() => setModal(null)} onDone={() => { setModal(null); load() }} />}
       {modal?.kind === "receive" && <MoveModal mode="receive" user={user} items={items} locations={locations} jobs={jobs} onHand={onHandByItem} stock={stock} preItem={modal.item} onClose={() => setModal(null)} onDone={() => { setModal(null); load() }} />}
       {modal?.kind === "count" && <CountModal user={user} item={modal.item} locations={locations} stock={stock} onClose={() => setModal(null)} onDone={() => { setModal(null); load() }} />}
@@ -116,12 +120,12 @@ function Stat({ label, value, warn }) {
 }
 
 // ─── Stock tab ────────────────────────────────────────────────────────────────
-function StockTab({ items, onHand, onOpen, onImport, isAdmin }) {
+function StockTab({ items, cats: allCats, onHand, onOpen, onImport, isAdmin }) {
   const [q, setQ] = useState(""); const [cat, setCat] = useState("")
-  const cats = useMemo(() => [...new Set(items.map((i) => i.category).filter(Boolean))].sort(), [items])
+  const cats = useMemo(() => allCats.filter((c) => items.some((i) => i.category === c)), [items, allCats])
   const rows = items.filter((i) =>
     (!cat || i.category === cat) &&
-    (!q || `${i.sku} ${i.name} ${i.category} ${i.mfr_part_number || ""}`.toLowerCase().includes(q.toLowerCase())))
+    (!q || `${i.sku} ${i.name} ${i.category} ${i.family || ""} ${i.mfr_part_number || ""}`.toLowerCase().includes(q.toLowerCase())))
 
   if (items.length === 0) return (
     <div style={{ ...s.card, textAlign: "center", padding: 44, color: MUTED }}>
@@ -177,7 +181,7 @@ function ItemTable({ rows, onHand, onOpen, empty, showMin }) {
                 <tr key={i.id} className="lift" style={{ cursor: "pointer" }} onClick={() => onOpen(i)}>
                   <td style={s.td}>
                     <div style={{ fontWeight: 700, color: INK }}>{i.name}</div>
-                    <div style={{ fontSize: 11, color: FAINT }}>{i.sku}{i.size_rating ? ` · ${i.size_rating}` : ""}{i.category ? ` · ${i.category}` : ""}</div>
+                    <div style={{ fontSize: 11, color: FAINT }}>{i.sku}{i.size_rating ? ` · ${i.size_rating}` : ""}{i.family ? ` · ${i.family}` : ""}{i.category ? ` · ${i.category}` : ""}</div>
                   </td>
                   <td style={s.td}><span style={s.badge(TYPE_COLOR[i.type] || MUTED)}>{TYPE_LABEL[i.type] || i.type}</span></td>
                   <td style={{ ...s.td, textAlign: "right", fontWeight: 700, color: low ? WARN : TEXT }}>{fmtQty(oh)} {i.unit}{low && <div style={{ fontSize: 10, color: WARN, fontWeight: 700 }}>LOW</div>}</td>
@@ -195,9 +199,9 @@ function ItemTable({ rows, onHand, onOpen, empty, showMin }) {
 }
 
 // ─── Catalog (stocked + candidate SKUs) ──────────────────────────────────────
-function Catalog({ items, onHand, isAdmin, onOpen }) {
+function Catalog({ items, cats: allCats, onHand, isAdmin, onOpen }) {
   const [q, setQ] = useState(""); const [cat, setCat] = useState(""); const [onlyStocked, setOnlyStocked] = useState(false)
-  const cats = useMemo(() => [...new Set(items.map((i) => i.category).filter(Boolean))].sort(), [items])
+  const cats = useMemo(() => allCats.filter((c) => items.some((i) => i.category === c)), [items, allCats])
   const rows = items.filter((i) =>
     (!cat || i.category === cat) && (!onlyStocked || i.stocked) &&
     (!q || `${i.sku} ${i.name} ${i.family || ""} ${i.size_rating || ""} ${i.configuration || ""}`.toLowerCase().includes(q.toLowerCase())))
@@ -235,7 +239,7 @@ function Catalog({ items, onHand, isAdmin, onOpen }) {
 }
 
 // ─── Item detail modal ───────────────────────────────────────────────────────
-function ItemModal({ item, user, stock, locName, locations, jobs, onClose, onChanged, onAction }) {
+function ItemModal({ item, cats, user, stock, locName, locations, jobs, onClose, onChanged, onAction }) {
   const [edit, setEdit] = useState(false)
   const [f, setF] = useState(item)
   const [history, setHistory] = useState(null)
@@ -309,8 +313,13 @@ function ItemModal({ item, user, stock, locName, locations, jobs, onClose, onCha
         <>
           <Field label="Name"><input style={s.input} value={f.name || ""} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
           <div style={s.grid2}>
-            <Field label="Category"><input style={s.input} value={f.category || ""} onChange={(e) => setF({ ...f, category: e.target.value })} /></Field>
-            <Field label="Family"><input style={s.input} value={f.family || ""} onChange={(e) => setF({ ...f, family: e.target.value })} /></Field>
+            <Field label="Category">
+              <select style={s.input} value={f.category || ""} onChange={(e) => setF({ ...f, category: e.target.value })}>
+                {!cats.includes(f.category) && <option value={f.category || ""}>{f.category || "Pick a category…"}</option>}
+                {cats.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </Field>
+            <Field label="Family (subcategory)"><input style={s.input} value={f.family || ""} onChange={(e) => setF({ ...f, family: e.target.value })} placeholder="e.g. Building wire, EMT fittings" /></Field>
             <Field label="Size / rating"><input style={s.input} value={f.size_rating || ""} onChange={(e) => setF({ ...f, size_rating: e.target.value })} /></Field>
             <Field label="Configuration"><input style={s.input} value={f.configuration || ""} onChange={(e) => setF({ ...f, configuration: e.target.value })} /></Field>
             <Field label="Unit"><input style={s.input} value={f.unit || ""} onChange={(e) => setF({ ...f, unit: e.target.value })} /></Field>
@@ -503,7 +512,7 @@ const CATALOG_MATERIAL_CATS = ["Wire & Cable", "Conduit & Raceway", "Devices & P
 
 function ImportModal({ onClose, onDone }) {
   const [busy, setBusy] = useState(false); const [log, setLog] = useState([]); const [err, setErr] = useState("")
-  const [includeCatalog, setIncludeCatalog] = useState(true)
+  const [includeCatalog, setIncludeCatalog] = useState(false)
   const add = (m) => setLog((l) => [...l, m])
 
   const run = async (file) => {
@@ -615,11 +624,22 @@ function ImportModal({ onClose, onDone }) {
   )
 }
 
+// Items that already exist keep their category, family, type, and active flag: those are managed in the
+// hub (or the Google Sheet) now, so a re-import only refreshes counts, costs, and notes.
 async function upsertBatch(rows) {
-  for (let i = 0; i < rows.length; i += 400) {
-    const { error } = await supabase.from("inv_items").upsert(rows.slice(i, i + 400), { onConflict: "sku" })
-    if (error) throw error
+  const existing = new Set()
+  for (let i = 0; i < rows.length; i += 500) {
+    const { data } = await supabase.from("inv_items").select("sku").in("sku", rows.slice(i, i + 500).map((r) => r.sku))
+    ;(data || []).forEach((r) => existing.add(r.sku))
   }
+  // Two batches so every row in a batch has the same columns (mixed shapes would blank the missing ones).
+  const fresh = rows.filter((r) => !existing.has(r.sku))
+  const known = rows.filter((r) => existing.has(r.sku)).map(({ category, family, type, active, stocked, ...keep }) => keep)
+  for (const batch of [fresh, known])
+    for (let i = 0; i < batch.length; i += 400) {
+      const { error } = await supabase.from("inv_items").upsert(batch.slice(i, i + 400), { onConflict: "sku" })
+      if (error) throw error
+    }
 }
 
 // ─── little bits ─────────────────────────────────────────────────────────────
