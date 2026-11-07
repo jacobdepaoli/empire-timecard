@@ -26,7 +26,8 @@ export default function Inventory({ user, route }) {
   const [stock, setStock] = useState([])        // rows from inv_stock view: {item_id, location_id, qty}
   const [locations, setLocations] = useState([])
   const [jobs, setJobs] = useState([])
-  const [cats, setCats] = useState([])            // standard categories, in display order
+  const [cats, setCats] = useState([])            // categories in display order (DigiKey names + trade names)
+  const [subs, setSubs] = useState({})            // category → its subcategories, in order
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)       // {kind, item?}
 
@@ -40,7 +41,7 @@ export default function Inventory({ user, route }) {
     ])
     const order = Object.fromEntries((ct || []).map((c) => [c.name, c.sort]))
     const sorted = (it || []).slice().sort((a, b) => (order[a.category] ?? 999) - (order[b.category] ?? 999) || (a.family || "").localeCompare(b.family || "") || a.name.localeCompare(b.name))
-    setItems(sorted); setStock(st || []); setLocations(loc || []); setJobs(jb || []); setCats((ct || []).map((c) => c.name))
+    setItems(sorted); setStock(st || []); setLocations(loc || []); setJobs(jb || []); setCats((ct || []).map((c) => c.name)); setSubs(Object.fromEntries((ct || []).map((c) => [c.name, c.subcategories || []])))
     setLoading(false)
   }
   useEffect(() => { load() }, [])
@@ -110,11 +111,11 @@ export default function Inventory({ user, route }) {
       {tab === "reorder"
         ? <ItemTable rows={reorder} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} empty="Nothing is below its reorder point. Nice." showMin />
         : tab === "catalog"
-        ? <Catalog items={items} cats={cats} onHand={onHandByItem} isAdmin={user.is_admin} onOpen={(it) => setModal({ kind: "item", item: it })} />
-        : <StockTab items={stocked} cats={cats} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} onImport={() => setModal({ kind: "import" })} isAdmin={user.is_admin} />}
+        ? <Catalog items={items} cats={cats} subs={subs} onHand={onHandByItem} isAdmin={user.is_admin} onOpen={(it) => setModal({ kind: "item", item: it })} />
+        : <StockTab items={stocked} cats={cats} subs={subs} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} onImport={() => setModal({ kind: "import" })} isAdmin={user.is_admin} />}
 
       {modal?.kind === "missing" && <Modal title="Label not found" onClose={closeModal} width={420}><div style={{ fontSize: 14, color: TEXT, lineHeight: 1.6 }}>No active item has SKU <strong>{modal.sku}</strong>. It may have been retired or renumbered. Ask the office for a new label.</div></Modal>}
-      {modal?.kind === "item" && <ItemModal item={modal.item} cats={cats} user={user} stock={stock} locName={locName} locations={locations} jobs={jobs} onClose={closeModal} onChanged={() => { closeModal(); load() }} onAction={(kind) => setModal({ kind, item: modal.item })} />}
+      {modal?.kind === "item" && <ItemModal item={modal.item} cats={cats} subs={subs} user={user} stock={stock} locName={locName} locations={locations} jobs={jobs} onClose={closeModal} onChanged={() => { closeModal(); load() }} onAction={(kind) => setModal({ kind, item: modal.item })} />}
       {modal?.kind === "issue" && <MoveModal mode="issue" user={user} items={stocked} locations={locations} jobs={jobs} onHand={onHandByItem} stock={stock} preItem={modal.item} onClose={closeModal} onDone={() => { closeModal(); load() }} />}
       {modal?.kind === "receive" && <MoveModal mode="receive" user={user} items={items} locations={locations} jobs={jobs} onHand={onHandByItem} stock={stock} preItem={modal.item} onClose={() => setModal(null)} onDone={() => { setModal(null); load() }} />}
       {modal?.kind === "count" && <CountModal user={user} item={modal.item} locations={locations} stock={stock} onClose={() => setModal(null)} onDone={() => { setModal(null); load() }} />}
@@ -135,11 +136,12 @@ function Stat({ label, value, warn }) {
 }
 
 // ─── Stock tab ────────────────────────────────────────────────────────────────
-function StockTab({ items, cats: allCats, onHand, onOpen, onImport, isAdmin }) {
-  const [q, setQ] = useState(""); const [cat, setCat] = useState("")
+function StockTab({ items, cats: allCats, subs, onHand, onOpen, onImport, isAdmin }) {
+  const [q, setQ] = useState(""); const [cat, setCat] = useState(""); const [sub, setSub] = useState("")
   const cats = useMemo(() => allCats.filter((c) => items.some((i) => i.category === c)), [items, allCats])
+  const subOpts = cat ? (subs[cat] || []).filter((x) => items.some((i) => i.category === cat && i.family === x)) : []
   const rows = items.filter((i) =>
-    (!cat || i.category === cat) &&
+    (!cat || i.category === cat) && (!sub || i.family === sub) &&
     (!q || `${i.sku} ${i.name} ${i.category} ${i.family || ""} ${i.mfr_part_number || ""}`.toLowerCase().includes(q.toLowerCase())))
 
   if (items.length === 0) return (
@@ -153,13 +155,13 @@ function StockTab({ items, cats: allCats, onHand, onOpen, onImport, isAdmin }) {
 
   return (
     <>
-      <Filters q={q} setQ={setQ} cat={cat} setCat={setCat} cats={cats} />
+      <Filters q={q} setQ={setQ} cat={cat} setCat={(c) => { setCat(c); setSub("") }} cats={cats} sub={sub} setSub={setSub} subOpts={subOpts} />
       <ItemTable rows={rows} onHand={onHand} onOpen={onOpen} empty="No items match that search." />
     </>
   )
 }
 
-function Filters({ q, setQ, cat, setCat, cats }) {
+function Filters({ q, setQ, cat, setCat, cats, sub, setSub, subOpts = [] }) {
   return (
     <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
       <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
@@ -170,6 +172,12 @@ function Filters({ q, setQ, cat, setCat, cats }) {
         <option value="">All categories</option>
         {cats.map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
+      {cat && subOpts.length > 1 && (
+        <select style={{ ...s.input, width: "auto", minWidth: 150 }} value={sub} onChange={(e) => setSub(e.target.value)}>
+          <option value="">All subcategories</option>
+          {subOpts.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      )}
     </div>
   )
 }
@@ -214,16 +222,17 @@ function ItemTable({ rows, onHand, onOpen, empty, showMin }) {
 }
 
 // ─── Catalog (stocked + candidate SKUs) ──────────────────────────────────────
-function Catalog({ items, cats: allCats, onHand, isAdmin, onOpen }) {
-  const [q, setQ] = useState(""); const [cat, setCat] = useState(""); const [onlyStocked, setOnlyStocked] = useState(false)
+function Catalog({ items, cats: allCats, subs, onHand, isAdmin, onOpen }) {
+  const [q, setQ] = useState(""); const [cat, setCat] = useState(""); const [sub, setSub] = useState(""); const [onlyStocked, setOnlyStocked] = useState(false)
   const cats = useMemo(() => allCats.filter((c) => items.some((i) => i.category === c)), [items, allCats])
   const rows = items.filter((i) =>
-    (!cat || i.category === cat) && (!onlyStocked || i.stocked) &&
+    (!cat || i.category === cat) && (!sub || i.family === sub) && (!onlyStocked || i.stocked) &&
     (!q || `${i.sku} ${i.name} ${i.family || ""} ${i.size_rating || ""} ${i.configuration || ""}`.toLowerCase().includes(q.toLowerCase())))
     .slice(0, 400)
   return (
     <>
-      <Filters q={q} setQ={setQ} cat={cat} setCat={setCat} cats={cats} />
+      <Filters q={q} setQ={setQ} cat={cat} setCat={(c) => { setCat(c); setSub("") }} cats={cats} sub={sub} setSub={setSub}
+        subOpts={cat ? (subs[cat] || []).filter((x) => items.some((i) => i.category === cat && i.family === x)) : []} />
       <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, color: MUTED, marginBottom: 10, cursor: "pointer" }}>
         <input type="checkbox" checked={onlyStocked} onChange={(e) => setOnlyStocked(e.target.checked)} /> Only items we stock
       </label>
@@ -231,7 +240,7 @@ function Catalog({ items, cats: allCats, onHand, isAdmin, onOpen }) {
         <div style={{ overflowX: "auto" }}>
           <table style={s.table}>
             <thead><tr>
-              <th style={s.th}>Item</th><th style={s.th}>Family</th><th style={s.th}>Size / config</th>
+              <th style={s.th}>Item</th><th style={s.th}>Subcategory</th><th style={s.th}>Size / config</th>
               <th style={{ ...s.th, textAlign: "right" }}>Cost</th><th style={{ ...s.th, textAlign: "center" }}>Stocked</th>
             </tr></thead>
             <tbody>
@@ -254,7 +263,7 @@ function Catalog({ items, cats: allCats, onHand, isAdmin, onOpen }) {
 }
 
 // ─── Item detail modal ───────────────────────────────────────────────────────
-function ItemModal({ item, cats, user, stock, locName, locations, jobs, onClose, onChanged, onAction }) {
+function ItemModal({ item, cats, subs, user, stock, locName, locations, jobs, onClose, onChanged, onAction }) {
   const [edit, setEdit] = useState(false)
   const [f, setF] = useState(item)
   const [history, setHistory] = useState(null)
@@ -286,7 +295,7 @@ function ItemModal({ item, cats, user, stock, locName, locations, jobs, onClose,
             {item.sku && <span style={s.badge(MUTED)}>{item.sku}</span>}
           </div>
           <div style={{ ...s.grid2, marginBottom: 14 }}>
-            <KV k="Category" v={item.category} /><KV k="Family" v={item.family} />
+            <KV k="Category" v={item.category} /><KV k="Subcategory" v={item.family} />
             <KV k="Size / rating" v={item.size_rating} /><KV k="Configuration" v={item.configuration} />
             <KV k="Unit" v={item.unit} /><KV k="Mfr part #" v={item.mfr_part_number} />
             <KV k="Unit cost" v={item.unit_cost != null ? money(item.unit_cost) : null} /><KV k="Reorder at" v={item.min_qty} />
@@ -329,12 +338,18 @@ function ItemModal({ item, cats, user, stock, locName, locations, jobs, onClose,
           <Field label="Name"><input style={s.input} value={f.name || ""} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
           <div style={s.grid2}>
             <Field label="Category">
-              <select style={s.input} value={f.category || ""} onChange={(e) => setF({ ...f, category: e.target.value })}>
+              <select style={s.input} value={f.category || ""} onChange={(e) => setF({ ...f, category: e.target.value, family: (subs[e.target.value] || []).includes(f.family) ? f.family : "" })}>
                 {!cats.includes(f.category) && <option value={f.category || ""}>{f.category || "Pick a category…"}</option>}
                 {cats.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
-            <Field label="Family (subcategory)"><input style={s.input} value={f.family || ""} onChange={(e) => setF({ ...f, family: e.target.value })} placeholder="e.g. Building wire, EMT fittings" /></Field>
+            <Field label="Subcategory">
+              <select style={s.input} value={f.family || ""} onChange={(e) => setF({ ...f, family: e.target.value })}>
+                <option value="">Pick a subcategory…</option>
+                {f.family && !(subs[f.category] || []).includes(f.family) && <option value={f.family}>{f.family}</option>}
+                {(subs[f.category] || []).map((x) => <option key={x} value={x}>{x}</option>)}
+              </select>
+            </Field>
             <Field label="Size / rating"><input style={s.input} value={f.size_rating || ""} onChange={(e) => setF({ ...f, size_rating: e.target.value })} /></Field>
             <Field label="Configuration"><input style={s.input} value={f.configuration || ""} onChange={(e) => setF({ ...f, configuration: e.target.value })} /></Field>
             <Field label="Unit"><input style={s.input} value={f.unit || ""} onChange={(e) => setF({ ...f, unit: e.target.value })} /></Field>

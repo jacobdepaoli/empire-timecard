@@ -26,7 +26,7 @@ const TZ = 'America/Los_Angeles';
 const COLS = [
   ['sku', 'SKU', 'ro', 80],
   ['category', 'Category', 'edit', 200],
-  ['family', 'Family', 'edit', 150],
+  ['family', 'Subcategory', 'edit', 220],
   ['name', 'Item', 'edit', 280],
   ['size_rating', 'Size / rating', 'edit', 110],
   ['configuration', 'Configuration', 'edit', 120],
@@ -336,10 +336,15 @@ function buildTab_(snap) {
 }
 
 function ensureValidation_(sh, snap) {
+  if (sh.getRange(1, IDX.family + 1).getValue() !== COLS[IDX.family][1]) sh.getRange(1, IDX.family + 1).setValue(COLS[IDX.family][1]);
   const n = Math.max(sh.getMaxRows() - 1, 1);
   const cats = (snap && snap.categories) || [];
   if (cats.length) sh.getRange(2, IDX.category + 1, n, 1).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(cats, true).setAllowInvalid(false).setHelpText('Pick an Empire Hub category.').build());
+  const subs = (snap && snap.subcategories) || [];
+  if (subs.length) sh.getRange(2, IDX.family + 1, n, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(subs, true).setAllowInvalid(false)
+      .setHelpText('Pick a subcategory that belongs to this row\'s Category. The hub rejects one from a different category.').build());
   const types = (snap && snap.types) || ['Material', 'Tool', 'Equipment', 'Consumable', 'Asset'];
   sh.getRange(2, IDX.type + 1, n, 1).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(types, true).setAllowInvalid(false).build());

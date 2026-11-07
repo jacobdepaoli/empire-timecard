@@ -100,10 +100,11 @@ async function snapshot(skus: string[]) {
     items.push(...(data || []))
   }
   const st = await stockFor(items.map((i) => i.id), shopId)
-  const { data: cats } = await db.from("inv_categories").select("name").order("sort")
+  const { data: cats } = await db.from("inv_categories").select("name,subcategories").order("sort")
   return {
     items: items.map((i) => toRow(i, st[i.id])),
     categories: (cats || []).map((c) => c.name),
+    subcategories: [...new Set((cats || []).flatMap((c) => c.subcategories || []))],
     types: Object.values(TYPES),
     server_time: new Date().toISOString(),
   }
@@ -111,8 +112,16 @@ async function snapshot(skus: string[]) {
 
 async function push(rows: Record<string, any>[], editor: string) {
   const shopId = await mainShopId()
-  const { data: cats } = await db.from("inv_categories").select("name,kind")
+  const { data: cats } = await db.from("inv_categories").select("name,kind,subcategories")
   const catKind = Object.fromEntries((cats || []).map((c) => [c.name, c.kind]))
+  const catSubs: Record<string, string[]> = Object.fromEntries((cats || []).map((c) => [c.name, c.subcategories || []]))
+  // Subcategory must belong to the item's category; a category change clears a subcategory that no longer fits.
+  const fitSub = (patch: Record<string, unknown>, category: string, current: string | null) => {
+    const subs = catSubs[category] || []
+    if ("family" in patch && patch.family && !subs.includes(String(patch.family)))
+      throw new Error(`"${patch.family}" isn't a subcategory of ${category}. Pick one from the list.`)
+    if (!("family" in patch) && "category" in patch && current && !subs.includes(current)) patch.family = null
+  }
   const typeKey = (v: unknown) => {
     const t = String(v ?? "").trim().toLowerCase()
     return t ? (Object.keys(TYPES).find((k) => k === t || TYPES[k].toLowerCase() === t) ?? "") : null
@@ -144,6 +153,7 @@ async function push(rows: Record<string, any>[], editor: string) {
         const { data: found } = await db.from("inv_items").select("*").eq("sku", sku).maybeSingle()
         if (!found) throw new Error(`SKU ${sku} isn't in the hub. Clear the SKU cell to add this as a new item.`)
         if (patch.name === null) throw new Error("Item name can't be blank.")
+        fitSub(patch, String(patch.category ?? found.category), found.family)
         const changed = Object.fromEntries(Object.entries(patch).filter(([k, v]) => (found[k] ?? null) !== v && !(typeof v === "number" && Number(found[k]) === v)))
         if (Object.keys(changed).length) {
           const { data: upd, error } = await db.from("inv_items").update(changed).eq("id", found.id).select("*").single()
@@ -153,6 +163,7 @@ async function push(rows: Record<string, any>[], editor: string) {
       } else {
         if (!patch.name) throw new Error("Add an item name.")
         if (!patch.category) throw new Error("Pick a category, then the item is added to the hub.")
+        fitSub(patch, String(patch.category), null)
         const { data: nextSku, error: sErr } = await db.rpc("inv_next_sku", { p_category: patch.category })
         if (sErr || !nextSku) throw new Error("Couldn't assign a SKU.")
         // A brand-new row's checkboxes start unchecked, so new items are always active, and billable

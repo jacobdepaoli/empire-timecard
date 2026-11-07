@@ -18,6 +18,7 @@ function makeSheet(name) {
       const rg = {
         getSheet: () => sh, getRow: () => r, getLastRow: () => r + nr - 1, getColumn: () => c, getLastColumn: () => c + nc - 1,
         getValues: () => g.slice(r - 1, r - 1 + nr).map(row => row.slice(c - 1, c - 1 + nc)),
+        getValue: () => g[r - 1][c - 1],
         setValues(v) { v.forEach((row, i) => row.forEach((x, j) => { g[r - 1 + i][c - 1 + j] = x })); return rg },
         setValue(x) { g[r - 1][c - 1] = x; return rg },
         setNote(t) { notes[r + ',' + c] = t; return rg }, getNote: () => notes[r + ',' + c] || '', clearNote() { delete notes[r + ',' + c]; return rg },

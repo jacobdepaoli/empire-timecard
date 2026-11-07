@@ -214,3 +214,11 @@ revoke all on function public.inv_create_sync_key(text) from public, anon;
 grant execute on function public.inv_create_sync_key(text) to authenticated;
 grant execute on function public.inv_next_sku(text) to service_role;
 create extension if not exists pg_net;
+
+-- ── 2026-11-07 (later): DigiKey-based naming ──
+-- inv_categories was rebuilt with 29 categories: DigiKey's exact names where DigiKey has the category,
+-- trade names in DigiKey's style where it doesn't (source = 'Trade'). Each lists its subcategories, which
+-- inv_items.family must match. Item names were rewritten noun-first; the original photo description is in notes.
+-- The full mapping (and the SQL it generates) lives in supabase/inventory_naming.py.
+alter table public.inv_categories add column if not exists source text not null default 'DigiKey' check (source in ('DigiKey','Trade'));
+alter table public.inv_categories add column if not exists subcategories jsonb not null default '[]'::jsonb;
