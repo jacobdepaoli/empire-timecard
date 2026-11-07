@@ -1,0 +1,131 @@
+-- ════════════════════════════════════════════════════════════════════════════
+--  Empire Hub: Inventory (phase 1). Applied 2026-11-05 as migrations
+--  inventory_phase1_schema + inv_stock_security_invoker. Saved here for the record.
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- Locations: shop (with bins), vehicles, jobs-as-locations, suppliers
+create table if not exists public.inv_locations (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  kind text not null check (kind in ('shop','vehicle','job','supplier')),
+  bin text,
+  job_id uuid references public.jobs(id) on delete set null,
+  employee_id uuid references public.employees(id) on delete set null,
+  active boolean not null default true,
+  created_at timestamptz default now()
+);
+
+-- Item master: both stocked items and the catalog pick-list
+create table if not exists public.inv_items (
+  id uuid primary key default gen_random_uuid(),
+  sku text unique,
+  category text,
+  family text,
+  name text not null,
+  size_rating text,
+  configuration text,
+  unit text default 'each',
+  mfr_part_number text,
+  barcode text,
+  type text not null default 'material' check (type in ('material','tool','equipment','consumable','asset')),
+  billable boolean not null default true,
+  unit_cost numeric,
+  pricing_basis text,
+  min_qty numeric,
+  photo_location text,
+  photo_url text,
+  notes text,
+  stocked boolean not null default true,  -- true = we carry it; false = catalog candidate
+  active boolean not null default true,
+  created_at timestamptz default now()
+);
+create index if not exists inv_items_category_idx on public.inv_items (category);
+create index if not exists inv_items_family_idx on public.inv_items (family);
+create index if not exists inv_items_barcode_idx on public.inv_items (barcode);
+
+-- Ledger: every movement is one row; stock on hand is the sum of this table
+create table if not exists public.inv_transactions (
+  id uuid primary key default gen_random_uuid(),
+  item_id uuid not null references public.inv_items(id) on delete cascade,
+  type text not null check (type in ('receive','issue','transfer','return','adjust','count')),
+  qty numeric not null,
+  from_location_id uuid references public.inv_locations(id) on delete set null,
+  to_location_id uuid references public.inv_locations(id) on delete set null,
+  job_id uuid references public.jobs(id) on delete set null,
+  tm_sheet_id uuid references public.tm_sheets(id) on delete set null,
+  employee_id uuid references public.employees(id) on delete set null,
+  unit_cost numeric,
+  po_id uuid,
+  note text,
+  created_at timestamptz default now()
+);
+create index if not exists inv_tx_item_idx on public.inv_transactions (item_id);
+create index if not exists inv_tx_job_idx on public.inv_transactions (job_id);
+create index if not exists inv_tx_created_idx on public.inv_transactions (created_at);
+
+-- Purchase orders (scaffold for phase 3 receiving)
+create table if not exists public.inv_purchase_orders (
+  id uuid primary key default gen_random_uuid(),
+  po_number text,
+  supplier text,
+  status text default 'draft',
+  needed_by date,
+  created_by uuid references public.employees(id) on delete set null,
+  notes text,
+  created_at timestamptz default now()
+);
+create table if not exists public.inv_po_lines (
+  id uuid primary key default gen_random_uuid(),
+  po_id uuid not null references public.inv_purchase_orders(id) on delete cascade,
+  item_id uuid references public.inv_items(id) on delete set null,
+  description text,
+  qty numeric,
+  unit_cost numeric,
+  received_qty numeric default 0
+);
+alter table public.inv_transactions
+  add constraint inv_tx_po_fk foreign key (po_id)
+  references public.inv_purchase_orders(id) on delete set null;
+
+-- On-hand view: signed sum of the ledger per item per location
+create or replace view public.inv_stock as
+select item_id, location_id, sum(delta) as qty
+from (
+  select item_id, to_location_id   as location_id,  qty as delta
+  from public.inv_transactions where to_location_id is not null
+  union all
+  select item_id, from_location_id as location_id, -qty as delta
+  from public.inv_transactions where from_location_id is not null
+) t
+group by item_id, location_id;
+alter view public.inv_stock set (security_invoker = on);
+
+-- RLS: same is_admin() / is_active_employee() pattern as the rest of the hub
+alter table public.inv_locations        enable row level security;
+alter table public.inv_items            enable row level security;
+alter table public.inv_transactions     enable row level security;
+alter table public.inv_purchase_orders  enable row level security;
+alter table public.inv_po_lines         enable row level security;
+
+create policy inv_loc_select  on public.inv_locations       for select to authenticated using (is_active_employee());
+create policy inv_item_select on public.inv_items           for select to authenticated using (is_active_employee());
+create policy inv_tx_select   on public.inv_transactions    for select to authenticated using (is_active_employee());
+create policy inv_po_select   on public.inv_purchase_orders for select to authenticated using (is_active_employee());
+create policy inv_pol_select  on public.inv_po_lines        for select to authenticated using (is_active_employee());
+
+create policy inv_loc_write  on public.inv_locations       for all to authenticated using (is_admin()) with check (is_admin());
+create policy inv_item_write on public.inv_items           for all to authenticated using (is_admin()) with check (is_admin());
+create policy inv_po_write   on public.inv_purchase_orders for all to authenticated using (is_admin()) with check (is_admin());
+create policy inv_pol_write  on public.inv_po_lines        for all to authenticated using (is_admin()) with check (is_admin());
+
+-- Transactions: admins do anything; field crew may only issue / return / transfer / count under their own name
+create policy inv_tx_insert on public.inv_transactions for insert to authenticated
+  with check (
+    is_admin() or (
+      is_active_employee()
+      and employee_id = auth.uid()
+      and type in ('issue','return','transfer','count')
+    )
+  );
+create policy inv_tx_update on public.inv_transactions for update to authenticated using (is_admin()) with check (is_admin());
+create policy inv_tx_delete on public.inv_transactions for delete to authenticated using (is_admin());
