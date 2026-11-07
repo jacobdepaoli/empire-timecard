@@ -2,9 +2,10 @@
 // Everything saves straight to the hub; a count typed in the grid is recorded as a count at the chosen location.
 import { useEffect, useMemo, useRef, useState } from "react"
 import { supabase } from "../../supabase.js"
-import { s, G, GD, GSOFT, INK, TEXT, MUTED, FAINT, BORDER, BG, PANEL, WARN, WSOFT, DANGER } from "../../theme.js"
+import { s, G, GD, GSOFT, INK, TEXT, MUTED, FAINT, BORDER, BG, PANEL, SURFACE, WARN, WSOFT, DANGER } from "../../theme.js"
 import { Icon, Modal } from "../../ui.jsx"
 import { go } from "../../router.js"
+import useNarrow from "./useNarrow.js"
 
 const TYPES = [["material", "Material"], ["tool", "Tool"], ["equipment", "Equipment"], ["consumable", "Consumable"], ["asset", "Asset"]]
 const PAGE = 150
@@ -26,6 +27,8 @@ const num = (v) => { if (v === "" || v == null) return null; const n = Number(St
 const fmtQty = (n) => { const x = Number(n || 0); return Number.isInteger(x) ? String(x) : String(Math.round(x * 100) / 100) }
 
 export default function Manage({ user, onChanged }) {
+  const narrow = useNarrow()
+  const [openRow, setOpenRow] = useState("")    // phone: which card shows all its fields
   const [cats, setCats] = useState([])          // [{ name, sort, prefix, kind, source, subcategories }]
   const [items, setItems] = useState([])
   const [stock, setStock] = useState([])
@@ -69,6 +72,7 @@ export default function Manage({ user, onChanged }) {
 
   const val = (it, f) => (edits[it.id] && f in edits[it.id] ? edits[it.id][f] : f === "_count" ? fmtQty(qtyAt[it.id + "|" + countAt] || 0) : it[f] ?? "")
   const isChanged = (it, f) => !!(edits[it.id] && f in edits[it.id])
+  const dirtyRow = (it) => !!edits[it.id]
   const setVal = (it, f, v) => setEdits((all) => {
     const cur = { ...(all[it.id] || {}) }
     const orig = f === "_count" ? fmtQty(qtyAt[it.id + "|" + countAt] || 0) : it[f] ?? ""
@@ -166,29 +170,29 @@ export default function Manage({ user, onChanged }) {
   return (
     <div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-        <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 16px", display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "add" })}><Icon name="plus" size={15} color="#fff" /> Add item</button>
-        <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "cats" })}><Icon name="list" size={15} /> Categories</button>
-        <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={doExport} disabled={exporting}><Icon name="download" size={15} /> {exporting ? "Exporting…" : "Export .xlsx"}</button>
-        <div style={{ flex: 1 }} />
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, color: MUTED }}>
+        <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 16px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, ...(narrow ? { flex: 1, padding: "10px 8px" } : {}) }} onClick={() => setModal({ kind: "add" })}><Icon name="plus" size={15} color="#fff" /> Add item</button>
+        <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, ...(narrow ? { flex: 1, padding: "10px 8px" } : {}) }} onClick={() => setModal({ kind: "cats" })}><Icon name="list" size={15} /> Categories</button>
+        <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, ...(narrow ? { flex: 1, padding: "10px 8px" } : {}) }} onClick={doExport} disabled={exporting}><Icon name="download" size={15} /> {exporting ? "Exporting…" : narrow ? "Export" : "Export .xlsx"}</button>
+        {!narrow && <div style={{ flex: 1 }} />}
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, color: MUTED, ...(narrow ? { width: "100%" } : {}) }}>
           Counts at
-          <select style={{ ...s.input, width: "auto", padding: "8px 10px" }} value={countAt} onChange={(e) => changeCountAt(e.target.value)}>
+          <select style={{ ...s.input, width: narrow ? "100%" : "auto", flex: narrow ? 1 : undefined, padding: "8px 10px" }} value={countAt} onChange={(e) => changeCountAt(e.target.value)}>
             {locations.map((l) => <option key={l.id} value={l.id}>{l.name}{l.kind === "vehicle" ? " (truck)" : ""}</option>)}
           </select>
         </label>
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-        <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 0 }}>
           <span style={{ position: "absolute", left: 11, top: 11, pointerEvents: "none" }}><Icon name="search" size={16} color={FAINT} /></span>
           <input style={{ ...s.input, paddingLeft: 34 }} value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE) }} placeholder="Search SKU, name, part #, bin…" />
         </div>
-        <select style={{ ...s.input, width: "auto", minWidth: 150 }} value={cat} onChange={(e) => { setCat(e.target.value); setSub(""); setLimit(PAGE) }}>
+        <select style={{ ...s.input, flex: "1 1 150px", width: "auto", minWidth: 0 }} value={cat} onChange={(e) => { setCat(e.target.value); setSub(""); setLimit(PAGE) }}>
           <option value="">All categories</option>
           {cats.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
         </select>
         {cat && subOpts.length > 0 && (
-          <select style={{ ...s.input, width: "auto", minWidth: 150 }} value={sub} onChange={(e) => { setSub(e.target.value); setLimit(PAGE) }}>
+          <select style={{ ...s.input, flex: "1 1 150px", width: "auto", minWidth: 0 }} value={sub} onChange={(e) => { setSub(e.target.value); setLimit(PAGE) }}>
             <option value="">All subcategories</option>
             {subOpts.map((x) => <option key={x} value={x}>{x}</option>)}
           </select>
@@ -198,9 +202,73 @@ export default function Manage({ user, onChanged }) {
         </label>
       </div>
       <div style={{ fontSize: 12, color: MUTED, marginBottom: 8 }}>
-        {rows.length} item{rows.length === 1 ? "" : "s"}. Edit any cell, then <strong>Save changes</strong>. Typing in "On hand" records a count at <strong>{locName}</strong>. Press Enter to move down a row.
+        {narrow
+          ? <>{rows.length} item{rows.length === 1 ? "" : "s"}. Type a count in "On hand" (recorded at <strong>{locName}</strong>), tap <strong>Edit</strong> for other fields, then <strong>Save</strong>.</>
+          : <>{rows.length} item{rows.length === 1 ? "" : "s"}. Edit any cell, then <strong>Save changes</strong>. Typing in "On hand" records a count at <strong>{locName}</strong>. Press Enter to move down a row.</>}
       </div>
 
+      {narrow ? (
+        <div ref={gridRef} style={{ display: "grid", gap: 8 }}>
+          {shown.map((it, idx) => {
+            const c = val(it, "category"), open = openRow === it.id
+            const hl = (f) => (isChanged(it, f) ? { background: CHANGED } : {})
+            const pIn = (label, f, extra = {}) => (
+              <label style={{ display: "block", minWidth: 0 }}>
+                <span style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>{label}</span>
+                <input style={{ ...s.input, padding: "9px 10px", ...hl(f) }} value={val(it, f)} onChange={(e) => setVal(it, f, e.target.value)} {...extra} />
+              </label>
+            )
+            return (
+              <div key={it.id} style={{ background: rowErr[it.id] ? "#FDECEA" : SURFACE, border: `1px solid ${dirtyRow(it) ? "#E8C25A" : BORDER}`, borderRadius: 14, padding: "12px 12px 10px", opacity: val(it, "active") ? 1 : 0.6 }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, color: INK, fontSize: 14.5, lineHeight: 1.3 }}>{val(it, "name")}</div>
+                    <div style={{ fontSize: 12, color: FAINT, marginTop: 2 }}>{[it.sku, val(it, "size_rating"), val(it, "family")].filter(Boolean).join(" · ")}</div>
+                    {rowErr[it.id] && <div style={{ color: DANGER, fontSize: 12, marginTop: 4 }}>{rowErr[it.id]}</div>}
+                  </div>
+                  <label style={{ width: 92, flexShrink: 0 }}>
+                    <span style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>On hand</span>
+                    <input data-cell={`_count:${idx}`} onKeyDown={(e) => onKey(e, "_count", idx)} inputMode="decimal" enterKeyHint="next"
+                      style={{ ...s.input, padding: "9px 10px", textAlign: "right", fontWeight: 800, ...hl("_count") }} value={val(it, "_count")} onChange={(e) => setVal(it, "_count", e.target.value)} onFocus={(e) => e.target.select()} />
+                  </label>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6, fontSize: 12, color: MUTED }}>
+                  <span>Total {fmtQty(qtyTotal[it.id] || 0)} {it.unit}{it.min_qty != null ? ` · reorder at ${it.min_qty}` : ""}</span>
+                  <button style={{ ...s.btnGhost, padding: "4px 6px", fontSize: 13, fontWeight: 700, color: GD }} onClick={() => setOpenRow(open ? "" : it.id)}>{open ? "Close" : "Edit"}</button>
+                </div>
+                {open && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>
+                    <div style={{ gridColumn: "1 / -1" }}>{pIn("Item", "name")}</div>
+                    <label style={{ gridColumn: "1 / -1" }}><span style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>Category</span>
+                      <select style={{ ...s.input, padding: "9px 10px", ...hl("category") }} value={c} onChange={(e) => setVal(it, "category", e.target.value)}>
+                        {!subsOf[c] && <option value={c}>{c || "Pick…"}</option>}
+                        {cats.map((x) => <option key={x.name} value={x.name}>{x.name}</option>)}
+                      </select></label>
+                    <label style={{ gridColumn: "1 / -1" }}><span style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>Subcategory</span>
+                      <select style={{ ...s.input, padding: "9px 10px", ...hl("family") }} value={val(it, "family")} onChange={(e) => setVal(it, "family", e.target.value)}>
+                        <option value="">Pick…</option>
+                        {(subsOf[c] || []).map((x) => <option key={x} value={x}>{x}</option>)}
+                      </select></label>
+                    {pIn("Size / rating", "size_rating")}
+                    {pIn("Unit", "unit")}
+                    {pIn("Reorder at", "min_qty", { inputMode: "decimal" })}
+                    {pIn("Unit cost", "unit_cost", { inputMode: "decimal" })}
+                    <label><span style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>Type</span>
+                      <select style={{ ...s.input, padding: "9px 10px", ...hl("type") }} value={val(it, "type")} onChange={(e) => setVal(it, "type", e.target.value)}>
+                        {TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                      </select></label>
+                    {pIn("Bin / location", "photo_location")}
+                    <label style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 8, fontSize: 14, padding: "4px 0", ...hl("active") }}>
+                      <input type="checkbox" checked={!!val(it, "active")} onChange={(e) => setVal(it, "active", e.target.checked)} /> Active (uncheck to retire)
+                    </label>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {rows.length === 0 && <div style={{ ...s.card, textAlign: "center", color: MUTED }}>No items match.</div>}
+        </div>
+      ) : (
       <div ref={gridRef} style={{ ...s.card, padding: 0, overflow: "auto", maxHeight: "70vh" }}>
         <table style={{ ...s.table, minWidth: 1450 }}>
           <thead><tr>
@@ -253,10 +321,11 @@ export default function Manage({ user, onChanged }) {
           </tbody>
         </table>
       </div>
+      )}
       {rows.length > limit && <div style={{ textAlign: "center", marginTop: 10 }}><button style={s.btnSecondary} onClick={() => setLimit((l) => l + PAGE)}>Show {Math.min(PAGE, rows.length - limit)} more ({rows.length - limit} left)</button></div>}
 
       {(dirty > 0 || saving) && (
-        <div style={{ position: "sticky", bottom: 12, marginTop: 12, zIndex: 5, display: "flex", alignItems: "center", gap: 10, background: INK, color: "#fff", borderRadius: 14, padding: "12px 16px", boxShadow: "0 12px 30px rgba(0,0,0,.25)", flexWrap: "wrap" }}>
+        <div style={{ position: "sticky", bottom: narrow ? "calc(88px + env(safe-area-inset-bottom))" : 12, marginTop: 12, zIndex: 5, display: "flex", alignItems: "center", gap: 10, background: INK, color: "#fff", borderRadius: 14, padding: "12px 16px", boxShadow: "0 12px 30px rgba(0,0,0,.25)", flexWrap: "wrap" }}>
           <span style={{ flex: 1, fontWeight: 700, fontSize: 14 }}>{saving || `${dirty} item${dirty === 1 ? "" : "s"} changed`}</span>
           {!saving && <button style={{ ...s.btnGhost, color: "#ddd" }} onClick={() => { setEdits({}); setRowErr({}) }}>Discard</button>}
           <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 20px" }} onClick={save} disabled={!!saving}>{saving ? "Saving…" : "Save changes"}</button>

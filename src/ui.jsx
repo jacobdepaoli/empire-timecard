@@ -76,10 +76,10 @@ export const Icon = ({ name, size = 18, color = "currentColor", spin = false }) 
 // ─── Reusable: Modal ──────────────────────────────────────────────────────────
 export function Modal({ title, children, onClose, width = 680 }) {
   return (
-    <div style={s.overlay} className="no-print" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{ ...s.modal, width }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: INK }}>{title}</div>
+    <div style={s.overlay} className="no-print eh-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div style={{ ...s.modal, width }} className="eh-modal">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 18 }}>
+          <div className="eh-modal-title" style={{ fontSize: 18, fontWeight: 800, color: INK, minWidth: 0 }}>{title}</div>
           <button style={s.btnGhost} onClick={onClose}><Icon name="x" size={18} /></button>
         </div>
         {children}

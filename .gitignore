@@ -18,3 +18,4 @@ ios/App/build
 ios/App/Pods
 ios/App/output
 DerivedData
+.mobiletest/

@@ -93,12 +93,12 @@ export default function Labels({ items, cats, preselect = [] }) {
       </div>
 
       <div style={{ display: "flex", gap: 8, margin: "12px 0", flexWrap: "wrap" }}>
-        <input style={{ ...s.input, flex: 1, minWidth: 200 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search SKU or name…" />
-        <select style={{ ...s.input, width: "auto" }} value={cat} onChange={(e) => setCat(e.target.value)}>
+        <input style={{ ...s.input, flex: "1 1 220px", minWidth: 0 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search SKU or name…" />
+        <select style={{ ...s.input, flex: "1 1 150px", width: "auto", minWidth: 0 }} value={cat} onChange={(e) => setCat(e.target.value)}>
           <option value="">All categories</option>
           {cats.filter((c) => items.some((i) => i.category === c)).map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
-        <button style={s.btnSecondary} onClick={toggleAll}>{allShown ? "Clear these" : `Select all ${rows.length}`}</button>
+        <button style={{ ...s.btnSecondary, whiteSpace: "nowrap" }} onClick={toggleAll}>{allShown ? "Clear these" : `Select all ${rows.length}`}</button>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 14, alignItems: "start" }}>
@@ -118,7 +118,7 @@ export default function Labels({ items, cats, preselect = [] }) {
 
         <div style={{ ...s.card, background: PANEL }}>
           <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: MUTED, marginBottom: 8 }}>Preview · sheet 1</div>
-          {count === 0 ? <div style={{ color: FAINT, fontSize: 13, padding: "30px 0", textAlign: "center" }}>Pick items on the left.</div> : (
+          {count === 0 ? <div style={{ color: FAINT, fontSize: 13, padding: "30px 0", textAlign: "center" }}>Pick items to print.</div> : (
             <div style={{ overflow: "hidden", borderRadius: 6, border: `1px solid ${BORDER}`, width: "100%", aspectRatio: "8.5 / 11", position: "relative", background: "#fff" }}>
               <div style={{ transform: "scale(var(--k))", transformOrigin: "top left", position: "absolute", inset: 0 }} ref={(el) => { if (el) el.style.setProperty("--k", String(el.parentElement.clientWidth / 816)) }}>
                 <div className="lbl-sheet">{sheets[0].map((it, k) => <Label key={k} it={it} />)}</div>

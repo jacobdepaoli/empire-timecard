@@ -11,6 +11,7 @@ import { timeAgo } from "../../photos.js"
 import { go } from "../../router.js"
 import Labels from "./Labels.jsx"
 import Manage from "./Manage.jsx"
+import useNarrow from "./useNarrow.js"
 
 const TYPE_LABEL = { material: "Material", tool: "Tool", equipment: "Equipment", consumable: "Consumable", asset: "Asset" }
 const TYPE_COLOR = { material: G, tool: "#2f6fb0", equipment: "#8a5a1a", consumable: "#6a7a2a", asset: MUTED }
@@ -23,6 +24,7 @@ async function loadXLSX() {
 
 export default function Inventory({ user, route }) {
   const tab = route[1] || "stock"
+  const narrow = useNarrow()
   const [items, setItems] = useState([])
   const [stock, setStock] = useState([])        // rows from inv_stock view: {item_id, location_id, qty}
   const [locations, setLocations] = useState([])
@@ -68,9 +70,17 @@ export default function Inventory({ user, route }) {
 
   const tabs = [
     { id: "stock", label: "Stock", icon: "box" },
-    { id: "reorder", label: `Reorder${reorder.length ? ` · ${reorder.length}` : ""}`, icon: "bell" },
+    { id: "reorder", label: `Reorder${reorder.length ? ` ${narrow ? "" : "· "}${reorder.length}` : ""}`, icon: "bell" },
     { id: "catalog", label: "Catalog", icon: "list" },
-    ...(user.is_admin ? [{ id: "manage", label: "Manage & export", icon: "edit" }] : []),
+    ...(user.is_admin ? [{ id: "manage", label: narrow ? "Manage" : "Manage & export", icon: "edit" }] : []),
+  ]
+
+  const adminActions = [
+    { label: "Receive", icon: "download", run: () => setModal({ kind: "receive" }) },
+    { label: "Locations", icon: "pin", run: () => setModal({ kind: "locations" }) },
+    { label: "QR labels", icon: "scan", run: () => go("inventory/labels") },
+    { label: "Google Sheet", icon: "grid", run: () => setModal({ kind: "sheet" }) },
+    { label: "Import sheet", icon: "upload", run: () => setModal({ kind: "import" }) },
   ]
 
   if (loading) return <div style={{ color: MUTED, padding: 20 }}>Loading inventory…</div>
@@ -78,34 +88,50 @@ export default function Inventory({ user, route }) {
 
   return (
     <div>
-      {/* actions */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end", marginBottom: 14 }}>
-        <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 16px", display: "inline-flex", alignItems: "center", gap: 7 }} onClick={() => setModal({ kind: "issue" })}>
-          <Icon name="truck" size={16} color="#fff" /> Check out to job
-        </button>
-        {user.is_admin && <>
-          <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "receive" })}><Icon name="download" size={15} /> Receive</button>
-          <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "locations" })}><Icon name="pin" size={15} /> Locations</button>
-          <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => go("inventory/labels")}><Icon name="scan" size={15} /> QR labels</button>
-          <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "sheet" })}><Icon name="grid" size={15} /> Google Sheet</button>
-          <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "import" })}><Icon name="upload" size={15} /> Import sheet</button>
-        </>}
-      </div>
+      {/* actions: phones get one main button + a "More" menu so items aren't pushed below the fold */}
+      {narrow ? (
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          <button style={{ ...s.btnPrimary, flex: 1, padding: "12px 14px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }} onClick={() => setModal({ kind: "issue" })}>
+            <Icon name="truck" size={17} color="#fff" /> Check out to job
+          </button>
+          {user.is_admin && <button aria-label="More inventory actions" style={{ ...s.btnSecondary, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 700 }} onClick={() => setModal({ kind: "more" })}>More <Icon name="chevron" size={14} /></button>}
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end", marginBottom: 14 }}>
+          <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 16px", display: "inline-flex", alignItems: "center", gap: 7 }} onClick={() => setModal({ kind: "issue" })}>
+            <Icon name="truck" size={16} color="#fff" /> Check out to job
+          </button>
+          {user.is_admin && adminActions.map((a) => (
+            <button key={a.label} style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={a.run}><Icon name={a.icon} size={15} /> {a.label}</button>
+          ))}
+        </div>
+      )}
 
-      {/* stat cards */}
-      <div style={{ ...s.grid4, marginBottom: 16 }}>
-        <Stat label="Stocked items" value={stocked.length} />
-        <Stat label="Inventory value" value={money(totalValue)} />
-        <Stat label="Below reorder" value={reorder.length} warn={reorder.length > 0} />
-        <Stat label="Locations" value={locations.length} />
-      </div>
+      {/* stats */}
+      {narrow ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 14, marginBottom: 12, overflow: "hidden" }}>
+          {[["Items", stocked.length], ["Value", "$" + Math.round(totalValue).toLocaleString()], ["Low", reorder.length, reorder.length > 0], ["Places", locations.length]].map(([l, v, warn], i) => (
+            <div key={l} style={{ padding: "9px 4px", textAlign: "center", borderLeft: i ? `1px solid ${BG}` : "none" }}>
+              <div style={{ fontWeight: 800, fontSize: 16, color: warn ? WARN : GD, whiteSpace: "nowrap" }}>{v}</div>
+              <div style={{ fontSize: 10.5, color: MUTED, fontWeight: 600, textTransform: "uppercase", letterSpacing: ".4px" }}>{l}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ ...s.grid4, marginBottom: 16 }}>
+          <Stat label="Stocked items" value={stocked.length} />
+          <Stat label="Inventory value" value={"$" + totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
+          <Stat label="Below reorder" value={reorder.length} warn={reorder.length > 0} />
+          <Stat label="Locations" value={locations.length} />
+        </div>
+      )}
 
-      {/* tabs */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+      {/* tabs: one scrollable row on phones */}
+      <div className="eh-noscrollbar" style={{ display: "flex", gap: 6, marginBottom: 12, ...(narrow ? {} : { flexWrap: "wrap", marginBottom: 14 }) }}>
         {tabs.map((t) => (
           <button key={t.id} onClick={() => (location.hash = `/inventory/${t.id}`)}
-            style={{ ...(tab === t.id ? s.btnPrimary : s.btnSecondary), width: "auto", padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <Icon name={t.icon} size={15} color={tab === t.id ? "#fff" : MUTED} /> {t.label}
+            style={{ ...(tab === t.id ? s.btnPrimary : s.btnSecondary), width: "auto", padding: narrow ? "9px 4px" : "8px 14px", flex: narrow ? "1 1 0" : "0 0 auto", minWidth: 0, boxShadow: "none", fontSize: narrow ? 13.5 : undefined, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, whiteSpace: "nowrap" }}>
+            {!narrow && <Icon name={t.icon} size={15} color={tab === t.id ? "#fff" : MUTED} />} {t.label}
           </button>
         ))}
       </div>
@@ -113,11 +139,22 @@ export default function Inventory({ user, route }) {
       {tab === "manage" && user.is_admin
         ? <Manage user={user} onChanged={load} />
         : tab === "reorder"
-        ? <ItemTable rows={reorder} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} empty="Nothing is below its reorder point. Nice." showMin />
+        ? <ItemTable narrow={narrow} rows={reorder} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} empty="Nothing is below its reorder point. Nice." showMin />
         : tab === "catalog"
-        ? <Catalog items={items} cats={cats} subs={subs} onHand={onHandByItem} isAdmin={user.is_admin} onOpen={(it) => setModal({ kind: "item", item: it })} />
-        : <StockTab items={stocked} cats={cats} subs={subs} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} onImport={() => setModal({ kind: "import" })} isAdmin={user.is_admin} />}
+        ? <Catalog narrow={narrow} items={items} cats={cats} subs={subs} onHand={onHandByItem} isAdmin={user.is_admin} onOpen={(it) => setModal({ kind: "item", item: it })} />
+        : <StockTab narrow={narrow} items={stocked} cats={cats} subs={subs} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} onImport={() => setModal({ kind: "import" })} isAdmin={user.is_admin} />}
 
+      {modal?.kind === "more" && (
+        <Modal title="Inventory" onClose={() => setModal(null)} width={420}>
+          <div style={{ display: "grid", gap: 8 }}>
+            {adminActions.map((a) => (
+              <button key={a.label} style={{ ...s.btnSecondary, display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", fontSize: 15, textAlign: "left" }} onClick={() => { setModal(null); a.run() }}>
+                <Icon name={a.icon} size={18} color={GD} /> {a.label}
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )}
       {modal?.kind === "missing" && <Modal title="Label not found" onClose={closeModal} width={420}><div style={{ fontSize: 14, color: TEXT, lineHeight: 1.6 }}>No active item has SKU <strong>{modal.sku}</strong>. It may have been retired or renumbered. Ask the office for a new label.</div></Modal>}
       {modal?.kind === "item" && <ItemModal item={modal.item} cats={cats} subs={subs} user={user} stock={stock} locName={locName} locations={locations} jobs={jobs} onClose={closeModal} onChanged={() => { closeModal(); load() }} onAction={(kind) => setModal({ kind, item: modal.item })} />}
       {modal?.kind === "issue" && <MoveModal mode="issue" user={user} items={stocked} locations={locations} jobs={jobs} onHand={onHandByItem} stock={stock} preItem={modal.item} onClose={closeModal} onDone={() => { closeModal(); load() }} />}
@@ -140,7 +177,7 @@ function Stat({ label, value, warn }) {
 }
 
 // ─── Stock tab ────────────────────────────────────────────────────────────────
-function StockTab({ items, cats: allCats, subs, onHand, onOpen, onImport, isAdmin }) {
+function StockTab({ narrow, items, cats: allCats, subs, onHand, onOpen, onImport, isAdmin }) {
   const [q, setQ] = useState(""); const [cat, setCat] = useState(""); const [sub, setSub] = useState("")
   const cats = useMemo(() => allCats.filter((c) => items.some((i) => i.category === c)), [items, allCats])
   const subOpts = cat ? (subs[cat] || []).filter((x) => items.some((i) => i.category === cat && i.family === x)) : []
@@ -160,7 +197,7 @@ function StockTab({ items, cats: allCats, subs, onHand, onOpen, onImport, isAdmi
   return (
     <>
       <Filters q={q} setQ={setQ} cat={cat} setCat={(c) => { setCat(c); setSub("") }} cats={cats} sub={sub} setSub={setSub} subOpts={subOpts} />
-      <ItemTable rows={rows} onHand={onHand} onOpen={onOpen} empty="No items match that search." />
+      <ItemTable narrow={narrow} rows={rows} onHand={onHand} onOpen={onOpen} empty="No items match that search." />
     </>
   )
 }
@@ -168,16 +205,16 @@ function StockTab({ items, cats: allCats, subs, onHand, onOpen, onImport, isAdmi
 function Filters({ q, setQ, cat, setCat, cats, sub, setSub, subOpts = [] }) {
   return (
     <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-      <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
+      <div style={{ position: "relative", flex: "1 1 220px", minWidth: 0 }}>
         <span style={{ position: "absolute", left: 11, top: 11, pointerEvents: "none" }}><Icon name="search" size={16} color={FAINT} /></span>
         <input style={{ ...s.input, paddingLeft: 34 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search SKU, name, part #…" />
       </div>
-      <select style={{ ...s.input, width: "auto", minWidth: 150 }} value={cat} onChange={(e) => setCat(e.target.value)}>
+      <select style={{ ...s.input, flex: "1 1 140px", width: "auto", minWidth: 0 }} value={cat} onChange={(e) => setCat(e.target.value)}>
         <option value="">All categories</option>
         {cats.map((c) => <option key={c} value={c}>{c}</option>)}
       </select>
       {cat && subOpts.length > 1 && (
-        <select style={{ ...s.input, width: "auto", minWidth: 150 }} value={sub} onChange={(e) => setSub(e.target.value)}>
+        <select style={{ ...s.input, flex: "1 1 140px", width: "auto", minWidth: 0 }} value={sub} onChange={(e) => setSub(e.target.value)}>
           <option value="">All subcategories</option>
           {subOpts.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -186,8 +223,17 @@ function Filters({ q, setQ, cat, setCat, cats, sub, setSub, subOpts = [] }) {
   )
 }
 
-function ItemTable({ rows, onHand, onOpen, empty, showMin }) {
+function ItemTable({ narrow, rows, onHand, onOpen, empty, showMin }) {
   if (rows.length === 0) return <div style={{ ...s.card, textAlign: "center", color: MUTED, padding: 30 }}>{empty}</div>
+  if (narrow) return (
+    <PhoneList rows={rows} onOpen={onOpen} right={(i) => {
+      const oh = onHand[i.id] || 0, low = i.min_qty != null && oh < Number(i.min_qty)
+      return <>
+        <div style={{ fontWeight: 800, fontSize: 16, color: low ? WARN : INK }}>{fmtQty(oh)}</div>
+        <div style={{ fontSize: 11, color: low ? WARN : FAINT, fontWeight: low ? 700 : 500 }}>{low ? (showMin ? `LOW · min ${i.min_qty}` : "LOW") : i.unit}</div>
+      </>
+    }} />
+  )
   return (
     <div style={{ ...s.card, padding: 0, overflow: "hidden" }}>
       <div style={{ overflowX: "auto" }}>
@@ -225,8 +271,30 @@ function ItemTable({ rows, onHand, onOpen, empty, showMin }) {
   )
 }
 
+// Phone layout for item lists: name wraps to two lines, details underneath, quantity on the right.
+function PhoneList({ rows, onOpen, right }) {
+  const [limit, setLimit] = useState(120)
+  return (
+    <>
+      <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 14, overflow: "hidden" }}>
+        {rows.slice(0, limit).map((i, n) => (
+          <button key={i.id} onClick={() => onOpen(i)}
+            style={{ display: "flex", width: "100%", alignItems: "center", gap: 10, padding: "11px 14px", background: "none", border: "none", borderTop: n ? `1px solid ${BG}` : "none", textAlign: "left", cursor: "pointer", color: TEXT }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, color: INK, fontSize: 14.5, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{i.name}</div>
+              <div style={{ fontSize: 12, color: FAINT, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[i.sku, i.size_rating, i.family].filter(Boolean).join(" · ")}</div>
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0, minWidth: 48 }}>{right(i)}</div>
+          </button>
+        ))}
+      </div>
+      {rows.length > limit && <button style={{ ...s.btnSecondary, width: "100%", marginTop: 10 }} onClick={() => setLimit((l) => l + 120)}>Show more ({rows.length - limit} left)</button>}
+    </>
+  )
+}
+
 // ─── Catalog (stocked + candidate SKUs) ──────────────────────────────────────
-function Catalog({ items, cats: allCats, subs, onHand, isAdmin, onOpen }) {
+function Catalog({ narrow, items, cats: allCats, subs, onHand, isAdmin, onOpen }) {
   const [q, setQ] = useState(""); const [cat, setCat] = useState(""); const [sub, setSub] = useState(""); const [onlyStocked, setOnlyStocked] = useState(false)
   const cats = useMemo(() => allCats.filter((c) => items.some((i) => i.category === c)), [items, allCats])
   const rows = items.filter((i) =>
@@ -240,6 +308,9 @@ function Catalog({ items, cats: allCats, subs, onHand, isAdmin, onOpen }) {
       <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, color: MUTED, marginBottom: 10, cursor: "pointer" }}>
         <input type="checkbox" checked={onlyStocked} onChange={(e) => setOnlyStocked(e.target.checked)} /> Only items we stock
       </label>
+      {narrow ? <PhoneList rows={rows} onOpen={onOpen} right={(i) => i.stocked
+        ? <><div style={{ fontWeight: 800, fontSize: 16, color: INK }}>{fmtQty(onHand[i.id] || 0)}</div><div style={{ fontSize: 11, color: FAINT }}>{i.unit}</div></>
+        : <div style={{ fontSize: 11, color: FAINT }}>Catalog</div>} /> :
       <div style={{ ...s.card, padding: 0, overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
           <table style={s.table}>
@@ -260,7 +331,7 @@ function Catalog({ items, cats: allCats, subs, onHand, isAdmin, onOpen }) {
             </tbody>
           </table>
         </div>
-      </div>
+      </div>}
       {items.filter((i) => (!cat || i.category === cat)).length > 400 && <div style={{ fontSize: 12, color: FAINT, marginTop: 8, textAlign: "center" }}>Showing first 400. Narrow the search to see more.</div>}
     </>
   )

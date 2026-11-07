@@ -102,6 +102,13 @@ export const css = `
     table { display: block !important; overflow-x: auto !important; white-space: nowrap !important; }
     input, select, textarea { font-size: 16px !important; }
   }
+  .eh-noscrollbar { scrollbar-width: none; }
+  .eh-noscrollbar::-webkit-scrollbar { display: none; }
+  @media (max-width: 640px) {
+    .eh-overlay { padding: calc(10px + env(safe-area-inset-top)) 8px calc(24px + env(safe-area-inset-bottom)) !important; }
+    .eh-modal { padding: 20px 18px !important; border-radius: 16px !important; }
+    .eh-modal-title { font-size: 17px !important; }
+  }
 
   /* ════════════════════════════════════════════════════════════
      T&M DOCUMENT — print-perfect, field service work order
