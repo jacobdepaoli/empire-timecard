@@ -222,3 +222,9 @@ create extension if not exists pg_net;
 -- The full mapping (and the SQL it generates) lives in supabase/inventory_naming.py.
 alter table public.inv_categories add column if not exists source text not null default 'DigiKey' check (source in ('DigiKey','Trade'));
 alter table public.inv_categories add column if not exists subcategories jsonb not null default '[]'::jsonb;
+
+-- ─── Migration: inventory_category_admin_functions ───────────────────────────
+-- Used by Inventory › Manage & export › Categories. Renames carry every item along atomically.
+-- inv_rename_category(p_old, p_new): admin only; refuses a name already in use; updates inv_categories.name and inv_items.category.
+-- inv_rename_subcategory(p_category, p_old, p_new): admin only; renames in place in inv_categories.subcategories (order kept) and inv_items.family.
+-- Both: security definer, search_path '', execute granted to authenticated only.

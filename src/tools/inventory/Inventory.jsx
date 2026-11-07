@@ -10,6 +10,7 @@ import { money } from "../../util.js"
 import { timeAgo } from "../../photos.js"
 import { go } from "../../router.js"
 import Labels from "./Labels.jsx"
+import Manage from "./Manage.jsx"
 
 const TYPE_LABEL = { material: "Material", tool: "Tool", equipment: "Equipment", consumable: "Consumable", asset: "Asset" }
 const TYPE_COLOR = { material: G, tool: "#2f6fb0", equipment: "#8a5a1a", consumable: "#6a7a2a", asset: MUTED }
@@ -69,6 +70,7 @@ export default function Inventory({ user, route }) {
     { id: "stock", label: "Stock", icon: "box" },
     { id: "reorder", label: `Reorder${reorder.length ? ` · ${reorder.length}` : ""}`, icon: "bell" },
     { id: "catalog", label: "Catalog", icon: "list" },
+    ...(user.is_admin ? [{ id: "manage", label: "Manage & export", icon: "edit" }] : []),
   ]
 
   if (loading) return <div style={{ color: MUTED, padding: 20 }}>Loading inventory…</div>
@@ -108,7 +110,9 @@ export default function Inventory({ user, route }) {
         ))}
       </div>
 
-      {tab === "reorder"
+      {tab === "manage" && user.is_admin
+        ? <Manage user={user} onChanged={load} />
+        : tab === "reorder"
         ? <ItemTable rows={reorder} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} empty="Nothing is below its reorder point. Nice." showMin />
         : tab === "catalog"
         ? <Catalog items={items} cats={cats} subs={subs} onHand={onHandByItem} isAdmin={user.is_admin} onOpen={(it) => setModal({ kind: "item", item: it })} />
