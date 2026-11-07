@@ -8,6 +8,8 @@ import { s, G, GD, GSOFT, INK, TEXT, MUTED, FAINT, BORDER, BG, PANEL, SURFACE, W
 import { Icon, Modal } from "../../ui.jsx"
 import { money } from "../../util.js"
 import { timeAgo } from "../../photos.js"
+import { go } from "../../router.js"
+import Labels from "./Labels.jsx"
 
 const TYPE_LABEL = { material: "Material", tool: "Tool", equipment: "Equipment", consumable: "Consumable", asset: "Asset" }
 const TYPE_COLOR = { material: G, tool: "#2f6fb0", equipment: "#8a5a1a", consumable: "#6a7a2a", asset: MUTED }
@@ -42,6 +44,13 @@ export default function Inventory({ user, route }) {
     setLoading(false)
   }
   useEffect(() => { load() }, [])
+  // A scanned label lands on #/inventory/item/<SKU>: open that item.
+  useEffect(() => {
+    if (loading || route[1] !== "item") return
+    const it = items.find((i) => i.sku === route[2])
+    setModal(it ? { kind: "item", item: it } : { kind: "missing", sku: route[2] })
+  }, [loading, route[1], route[2]])
+  const closeModal = () => { setModal(null); if (route[1] === "item") go("inventory") }
 
   // on-hand helpers
   const onHandByItem = useMemo(() => {
@@ -62,17 +71,19 @@ export default function Inventory({ user, route }) {
   ]
 
   if (loading) return <div style={{ color: MUTED, padding: 20 }}>Loading inventory…</div>
+  if (tab === "labels" && user.is_admin) return <Labels items={stocked} cats={cats} />
 
   return (
     <div>
       {/* actions */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end", marginBottom: 14 }}>
         <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 16px", display: "inline-flex", alignItems: "center", gap: 7 }} onClick={() => setModal({ kind: "issue" })}>
-          <Icon name="truck" size={16} color="#fff" /> Issue to job
+          <Icon name="truck" size={16} color="#fff" /> Check out to job
         </button>
         {user.is_admin && <>
           <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "receive" })}><Icon name="download" size={15} /> Receive</button>
           <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "locations" })}><Icon name="pin" size={15} /> Locations</button>
+          <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => go("inventory/labels")}><Icon name="scan" size={15} /> QR labels</button>
           <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "sheet" })}><Icon name="grid" size={15} /> Google Sheet</button>
           <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "import" })}><Icon name="upload" size={15} /> Import sheet</button>
         </>}
@@ -102,8 +113,9 @@ export default function Inventory({ user, route }) {
         ? <Catalog items={items} cats={cats} onHand={onHandByItem} isAdmin={user.is_admin} onOpen={(it) => setModal({ kind: "item", item: it })} />
         : <StockTab items={stocked} cats={cats} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} onImport={() => setModal({ kind: "import" })} isAdmin={user.is_admin} />}
 
-      {modal?.kind === "item" && <ItemModal item={modal.item} cats={cats} user={user} stock={stock} locName={locName} locations={locations} jobs={jobs} onClose={() => setModal(null)} onChanged={() => { setModal(null); load() }} onAction={(kind) => setModal({ kind, item: modal.item })} />}
-      {modal?.kind === "issue" && <MoveModal mode="issue" user={user} items={stocked} locations={locations} jobs={jobs} onHand={onHandByItem} stock={stock} preItem={modal.item} onClose={() => setModal(null)} onDone={() => { setModal(null); load() }} />}
+      {modal?.kind === "missing" && <Modal title="Label not found" onClose={closeModal} width={420}><div style={{ fontSize: 14, color: TEXT, lineHeight: 1.6 }}>No active item has SKU <strong>{modal.sku}</strong>. It may have been retired or renumbered. Ask the office for a new label.</div></Modal>}
+      {modal?.kind === "item" && <ItemModal item={modal.item} cats={cats} user={user} stock={stock} locName={locName} locations={locations} jobs={jobs} onClose={closeModal} onChanged={() => { closeModal(); load() }} onAction={(kind) => setModal({ kind, item: modal.item })} />}
+      {modal?.kind === "issue" && <MoveModal mode="issue" user={user} items={stocked} locations={locations} jobs={jobs} onHand={onHandByItem} stock={stock} preItem={modal.item} onClose={closeModal} onDone={() => { closeModal(); load() }} />}
       {modal?.kind === "receive" && <MoveModal mode="receive" user={user} items={items} locations={locations} jobs={jobs} onHand={onHandByItem} stock={stock} preItem={modal.item} onClose={() => setModal(null)} onDone={() => { setModal(null); load() }} />}
       {modal?.kind === "count" && <CountModal user={user} item={modal.item} locations={locations} stock={stock} onClose={() => setModal(null)} onDone={() => { setModal(null); load() }} />}
       {modal?.kind === "locations" && <LocationsModal locations={locations} jobs={jobs} onClose={() => setModal(null)} onChanged={load} />}
@@ -294,7 +306,7 @@ function ItemModal({ item, cats, user, stock, locName, locations, jobs, onClose,
           )}
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-            <button style={{ ...s.btnPrimary, width: "auto", padding: "9px 14px", display: "inline-flex", gap: 6, alignItems: "center" }} onClick={() => onAction("issue")}><Icon name="truck" size={15} color="#fff" /> Issue to job</button>
+            <button style={{ ...s.btnPrimary, width: "auto", padding: "9px 14px", display: "inline-flex", gap: 6, alignItems: "center" }} onClick={() => onAction("issue")}><Icon name="truck" size={15} color="#fff" /> Check out to job</button>
             {user.is_admin && <>
               <button style={s.btnSecondary} onClick={() => onAction("receive")}>Receive</button>
               <button style={s.btnSecondary} onClick={() => onAction("count")}>Count</button>
@@ -391,7 +403,7 @@ function MoveModal({ mode, user, items, locations, jobs, onHand, stock, preItem,
   }
 
   return (
-    <Modal title={issue ? "Issue to a job" : "Receive stock"} onClose={onClose} width={520}>
+    <Modal title={issue ? "Check out to a job" : "Receive stock"} onClose={onClose} width={520}>
       {err && <div style={s.alert("error")}>{err}</div>}
       {!preItem && (
         <Field label="Item">
@@ -436,7 +448,7 @@ function MoveModal({ mode, user, items, locations, jobs, onHand, stock, preItem,
 
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <button style={s.btnGhost} onClick={onClose}>Cancel</button>
-        <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 20px" }} onClick={submit} disabled={busy}>{busy ? "Saving…" : issue ? "Issue" : "Receive"}</button>
+        <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 20px" }} onClick={submit} disabled={busy}>{busy ? "Saving…" : issue ? "Check out" : "Receive"}</button>
       </div>
     </Modal>
   )

@@ -36,6 +36,8 @@ export default function App() {
     return () => sub.subscription.unsubscribe()
   }, [])
   useEffect(() => { if (user && notifPerm === "default") requestNotificationPermission().then(setNotifPerm) }, [user])
+  // Short links printed on QR labels: #/i/<SKU> → the item in Inventory.
+  useEffect(() => { if (route[0] === "i") location.replace(`#/inventory/item/${encodeURIComponent(route[1] || "")}`) }, [route])
 
   const logout = async () => { await supabase.auth.signOut(); setUser(null); go("") }
 
@@ -44,6 +46,7 @@ export default function App() {
   if (user.must_change_password) return <ChangePassword user={user} onDone={setUser} />
 
   const [toolId] = route
+  if (toolId === "i") return null
   if (toolId === "profile") return <ToolShell user={user} title="My Profile" icon="user"><MyProfile user={user} setUser={setUser} /></ToolShell>
 
   const tool = TOOLS.find((t) => t.id === toolId && (!t.adminOnly || user.is_admin))
