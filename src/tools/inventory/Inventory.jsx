@@ -74,7 +74,7 @@ export default function Inventory({ user, route }) {
   ]
 
   if (loading) return <div style={{ color: MUTED, padding: 20 }}>Loading inventory…</div>
-  if (tab === "labels" && user.is_admin) return <Labels items={stocked} cats={cats} />
+  if (tab === "labels" && user.is_admin) return <Labels key={route[2] || ""} items={stocked} cats={cats} preselect={decodeURIComponent(route[2] || "").split(",").filter(Boolean)} />
 
   return (
     <div>
@@ -323,6 +323,7 @@ function ItemModal({ item, cats, subs, user, stock, locName, locations, jobs, on
             {user.is_admin && <>
               <button style={s.btnSecondary} onClick={() => onAction("receive")}>Receive</button>
               <button style={s.btnSecondary} onClick={() => onAction("count")}>Count</button>
+              <button style={{ ...s.btnSecondary, display: "inline-flex", gap: 6, alignItems: "center" }} onClick={() => go(`inventory/labels/${encodeURIComponent(item.sku)}`)}><Icon name="scan" size={15} /> Print label</button>
               <button style={s.btnSecondary} onClick={() => setEdit(true)}>Edit</button>
             </>}
           </div>

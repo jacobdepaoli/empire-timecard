@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { supabase } from "../../supabase.js"
 import { s, G, GD, GSOFT, INK, TEXT, MUTED, FAINT, BORDER, BG, PANEL, WARN, WSOFT, DANGER } from "../../theme.js"
 import { Icon, Modal } from "../../ui.jsx"
-import { money } from "../../util.js"
+import { go } from "../../router.js"
 
 const TYPES = [["material", "Material"], ["tool", "Tool"], ["equipment", "Equipment"], ["consumable", "Consumable"], ["asset", "Asset"]]
 const PAGE = 150
@@ -272,7 +272,7 @@ export default function Manage({ user, onChanged }) {
 // ─── Add item ────────────────────────────────────────────────────────────────
 function AddItemModal({ user, cats, locations, defaultLoc, onClose, onDone }) {
   const [f, setF] = useState({ category: "", family: "", name: "", size_rating: "", configuration: "", unit: "each", type: "", unit_cost: "", min_qty: "", mfr_part_number: "", photo_location: "", notes: "", billable: null, qty: "", loc: defaultLoc })
-  const [busy, setBusy] = useState(false); const [err, setErr] = useState(""); const [added, setAdded] = useState([])
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState(""); const [added, setAdded] = useState([]); const [finished, setFinished] = useState(false)
   const cat = cats.find((c) => c.name === f.category)
   const type = f.type || cat?.kind || "material"
   const billable = f.billable ?? ["material", "consumable"].includes(type)
@@ -304,13 +304,37 @@ function AddItemModal({ user, cats, locations, defaultLoc, onClose, onDone }) {
       if (error) { setBusy(false); return setErr(`Added ${made.sku}, but the starting count didn't save: ${error.message}`) }
     }
     setBusy(false)
-    if (again) { setAdded((a) => [made, ...a]); setF((p) => ({ ...p, name: "", size_rating: "", configuration: "", unit_cost: "", min_qty: "", mfr_part_number: "", notes: "", qty: "" })) }
-    else onDone()
+    setAdded((a) => [made, ...a])
+    if (again) setF((p) => ({ ...p, name: "", size_rating: "", configuration: "", unit_cost: "", min_qty: "", mfr_part_number: "", notes: "", qty: "" }))
+    else setFinished(true)
+  }
+
+  // After adding: offer the QR label(s) right away.
+  if (finished) {
+    const skus = added.map((a) => a.sku).reverse()
+    return (
+      <Modal title={added.length === 1 ? "Item added" : `${added.length} items added`} onClose={onDone} width={480}>
+        <div style={{ border: `1px solid ${BORDER}`, borderRadius: 12, marginBottom: 14 }}>
+          {added.slice().reverse().map((a) => (
+            <div key={a.id} style={{ display: "flex", gap: 10, padding: "9px 12px", borderBottom: `1px solid ${BG}`, fontSize: 14 }}>
+              <span style={{ color: MUTED, fontWeight: 700, minWidth: 74 }}>{a.sku}</span><span style={{ color: INK }}>{a.name}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 13, color: MUTED, marginBottom: 14, lineHeight: 1.5 }}>{added.length === 1 ? "Its QR label is ready." : "Their QR labels are ready."} Print now, or any time from Inventory → QR labels.</div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button style={s.btnGhost} onClick={onDone}>Done</button>
+          <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 20px", display: "inline-flex", alignItems: "center", gap: 7 }} onClick={async () => { await onDone(); go(`inventory/labels/${encodeURIComponent(skus.join(","))}`) }}>
+            <Icon name="scan" size={16} color="#fff" /> Print QR label{added.length === 1 ? "" : "s"}
+          </button>
+        </div>
+      </Modal>
+    )
   }
 
   const fld = (label, k, props = {}) => <div style={s.field}><label style={s.label}>{label}</label><input style={s.input} value={f[k]} onChange={(e) => set(k, e.target.value)} {...props} /></div>
   return (
-    <Modal title="Add item" onClose={added.length ? onDone : onClose} width={620}>
+    <Modal title="Add item" onClose={added.length ? () => setFinished(true) : onClose} width={620}>
       {err && <div style={s.alert("error")}>{err}</div>}
       {added.length > 0 && <div style={{ background: GSOFT, color: GD, borderRadius: 10, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>Added {added.map((a) => `${a.sku} ${a.name}`).join(" · ")}</div>}
       <div style={s.grid2}>
@@ -343,7 +367,7 @@ function AddItemModal({ user, cats, locations, defaultLoc, onClose, onDone }) {
       <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, marginBottom: 12 }}><input type="checkbox" checked={billable} onChange={(e) => set("billable", e.target.checked)} /> Billable to customer</label>
       <div style={s.field}><label style={s.label}>Notes</label><textarea style={s.textarea} value={f.notes} onChange={(e) => set("notes", e.target.value)} /></div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-        <button style={s.btnGhost} onClick={added.length ? onDone : onClose}>{added.length ? "Done" : "Cancel"}</button>
+        <button style={s.btnGhost} onClick={added.length ? () => setFinished(true) : onClose}>{added.length ? "Done" : "Cancel"}</button>
         <button style={s.btnSecondary} onClick={() => submit(true)} disabled={busy}>Add + another</button>
         <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 20px" }} onClick={() => submit(false)} disabled={busy}>{busy ? "Adding…" : "Add item"}</button>
       </div>

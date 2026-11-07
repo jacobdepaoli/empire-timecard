@@ -56,9 +56,9 @@ const PRINT_CSS = `
   .lbl-sheet:last-child { break-after: auto; page-break-after: auto; }
 }`
 
-export default function Labels({ items, cats }) {
+export default function Labels({ items, cats, preselect = [] }) {
   const [q, setQ] = useState(""); const [cat, setCat] = useState("")
-  const [picked, setPicked] = useState({})        // sku → copies
+  const [picked, setPicked] = useState(() => Object.fromEntries(preselect.map((k) => [k, 1])))   // sku → copies (preselected from #/inventory/labels/<SKU,SKU>)
   const [start, setStart] = useState(1)           // first free label on a partly used sheet
   useEffect(() => { const el = document.createElement("style"); el.textContent = PRINT_CSS; document.head.appendChild(el); return () => el.remove() }, [])
 
@@ -66,7 +66,7 @@ export default function Labels({ items, cats }) {
     (!q || `${i.sku} ${i.name} ${i.family || ""}`.toLowerCase().includes(q.toLowerCase())))
   const bySku = Object.fromEntries(items.map((i) => [i.sku, i]))
   const labels = [...Array(Math.max(0, Math.min(PER_SHEET, Number(start) || 1) - 1)).fill(null)]
-  for (const [sku, n] of Object.entries(picked)) for (let k = 0; k < n; k++) labels.push(bySku[sku])
+  for (const [sku, n] of Object.entries(picked)) if (bySku[sku]) for (let k = 0; k < n; k++) labels.push(bySku[sku])
   const count = labels.filter(Boolean).length
   const sheets = []; for (let i = 0; i < labels.length; i += PER_SHEET) sheets.push(labels.slice(i, i + PER_SHEET))
   while (sheets.length && sheets[sheets.length - 1].length < PER_SHEET) sheets[sheets.length - 1].push(null)
