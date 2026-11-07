@@ -7,6 +7,7 @@ import { supabase } from "../../supabase.js"
 import { s, G, GD, GSOFT, INK, TEXT, MUTED, FAINT, BORDER, BG, PANEL, SURFACE, WARN, WSOFT, DANGER } from "../../theme.js"
 import { Icon, Modal } from "../../ui.jsx"
 import { money } from "../../util.js"
+import { timeAgo } from "../../photos.js"
 
 const TYPE_LABEL = { material: "Material", tool: "Tool", equipment: "Equipment", consumable: "Consumable", asset: "Asset" }
 const TYPE_COLOR = { material: G, tool: "#2f6fb0", equipment: "#8a5a1a", consumable: "#6a7a2a", asset: MUTED }
@@ -72,6 +73,7 @@ export default function Inventory({ user, route }) {
         {user.is_admin && <>
           <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "receive" })}><Icon name="download" size={15} /> Receive</button>
           <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "locations" })}><Icon name="pin" size={15} /> Locations</button>
+          <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "sheet" })}><Icon name="grid" size={15} /> Google Sheet</button>
           <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => setModal({ kind: "import" })}><Icon name="upload" size={15} /> Import sheet</button>
         </>}
       </div>
@@ -105,6 +107,7 @@ export default function Inventory({ user, route }) {
       {modal?.kind === "receive" && <MoveModal mode="receive" user={user} items={items} locations={locations} jobs={jobs} onHand={onHandByItem} stock={stock} preItem={modal.item} onClose={() => setModal(null)} onDone={() => { setModal(null); load() }} />}
       {modal?.kind === "count" && <CountModal user={user} item={modal.item} locations={locations} stock={stock} onClose={() => setModal(null)} onDone={() => { setModal(null); load() }} />}
       {modal?.kind === "locations" && <LocationsModal locations={locations} jobs={jobs} onClose={() => setModal(null)} onChanged={load} />}
+      {modal?.kind === "sheet" && <SheetSyncModal onClose={() => setModal(null)} />}
       {modal?.kind === "import" && <ImportModal onClose={() => setModal(null)} onDone={() => { setModal(null); load() }} />}
     </div>
   )
@@ -502,6 +505,82 @@ function LocationsModal({ locations, jobs, onClose, onChanged }) {
         <select style={{ ...s.input, width: "auto" }} value={kind} onChange={(e) => setKind(e.target.value)}><option value="vehicle">Vehicle</option><option value="shop">Shop</option></select>
         <button style={{ ...s.btnPrimary, width: "auto", padding: "0 16px" }} onClick={add} disabled={busy}>Add</button>
       </div>
+    </Modal>
+  )
+}
+
+// ─── Google Sheet sync (admin): sync keys + setup steps ──────────────────────
+// The Sheet runs public/empire-hub-sheet-sync.gs, which talks to the sheets-sync edge function.
+function SheetSyncModal({ onClose }) {
+  const [keys, setKeys] = useState(null); const [fresh, setFresh] = useState(""); const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(""); const [err, setErr] = useState("")
+  const load = async () => { const { data } = await supabase.from("inv_sync_keys").select("*").is("revoked_at", null).order("created_at", { ascending: false }); setKeys(data || []) }
+  useEffect(() => { load() }, [])
+  const copy = async (text, what) => {
+    try { await navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(""), 2500) }
+    catch { setErr("Couldn't copy automatically. Select the text and copy it.") }
+  }
+  const create = async () => {
+    setBusy(true); setErr("")
+    const { data, error } = await supabase.rpc("inv_create_sync_key", { p_label: "Google Sheet" })
+    setBusy(false)
+    if (error || !data) return setErr("Couldn't create a key. Try again.")
+    setFresh(data); load()
+  }
+  const revoke = async (k) => {
+    if (!window.confirm("Revoke this key? Any Google Sheet using it stops syncing until it's set up with a new key.")) return
+    await supabase.from("inv_sync_keys").update({ revoked_at: new Date().toISOString() }).eq("id", k.id); load()
+  }
+  const copyScript = async () => {
+    const res = await fetch("/empire-hub-sheet-sync.gs", { cache: "no-store" })
+    if (!res.ok) return setErr("Couldn't load the script. Try again.")
+    copy(await res.text(), "script")
+  }
+  const step = (n, title, body) => (
+    <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+      <div style={{ width: 26, height: 26, borderRadius: 13, background: GSOFT, color: GD, fontWeight: 800, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{n}</div>
+      <div style={{ fontSize: 13.5, color: TEXT, lineHeight: 1.55 }}><strong style={{ color: INK }}>{title}</strong><div>{body}</div></div>
+    </div>
+  )
+  return (
+    <Modal title="Sync with Google Sheets" onClose={onClose} width={600}>
+      {err && <div style={s.alert("error")}>{err}</div>}
+      <div style={{ fontSize: 13.5, color: MUTED, lineHeight: 1.6, marginBottom: 16 }}>
+        A Google Sheet tab that stays in step with this inventory. Edits in the sheet save here within seconds; issues, receiving, and edits here show up in the sheet every 5 minutes. A changed on-hand number in the sheet is recorded as a count at Main Shop with the editor's name.
+      </div>
+
+      {step(1, "Open the sheet in Google Sheets", "Upload the inventory workbook to Google Drive and open it with Google Sheets (or start a blank Google Sheet). The sync adds its own \"Hub Inventory\" tab.")}
+      {step(2, "Add the sync script", <>In the sheet: Extensions → Apps Script. Delete what's there, paste the script, and click Save.
+        <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button style={{ ...s.btnSecondary, display: "inline-flex", alignItems: "center", gap: 6 }} onClick={copyScript}><Icon name="file" size={14} /> {copied === "script" ? "Copied ✓" : "Copy script"}</button>
+          <a style={{ ...s.btnGhost, display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }} href="/empire-hub-sheet-sync.gs" target="_blank" rel="noreferrer"><Icon name="external" size={14} /> View</a>
+        </div></>)}
+      {step(3, "Connect it", <>Reload the sheet. Use the new <strong>Empire Hub → Set up sync…</strong> menu and paste a sync key from below. Google asks you to allow the script once.</>)}
+
+      <SectionLabel>Sync key</SectionLabel>
+      {fresh ? (
+        <div style={{ background: WSOFT, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
+          <div style={{ fontSize: 12.5, color: WARN, fontWeight: 700, marginBottom: 6 }}>Copy this now. It's only shown once.</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <code style={{ flex: 1, fontSize: 12.5, wordBreak: "break-all", background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 8, padding: "8px 10px" }}>{fresh}</code>
+            <button style={{ ...s.btnPrimary, width: "auto", padding: "9px 14px" }} onClick={() => copy(fresh, "key")}>{copied === "key" ? "Copied ✓" : "Copy"}</button>
+          </div>
+        </div>
+      ) : (
+        <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 18px", marginBottom: 12, display: "inline-flex", alignItems: "center", gap: 7 }} onClick={create} disabled={busy}>
+          <Icon name="plus" size={15} color="#fff" /> {busy ? "Creating…" : "Create sync key"}
+        </button>
+      )}
+      {keys == null ? <div style={{ color: FAINT, fontSize: 13 }}>Loading…</div>
+        : keys.length === 0 ? <div style={{ color: FAINT, fontSize: 13 }}>No keys yet.</div>
+        : keys.map((k) => (
+          <div key={k.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${BG}`, fontSize: 13 }}>
+            <span><strong>{k.label}</strong> <span style={{ color: FAINT }}>…{k.key_hint}</span>
+              <div style={{ fontSize: 12, color: MUTED }}>Created {timeAgo(k.created_at)} · {k.last_used_at ? `last synced ${timeAgo(k.last_used_at)}` : "not used yet"}</div></span>
+            <button style={{ ...s.btnGhost, color: DANGER }} onClick={() => revoke(k)}>Revoke</button>
+          </div>
+        ))}
+      <div style={{ fontSize: 12, color: FAINT, marginTop: 12, lineHeight: 1.5 }}>Share the Google Sheet with office admins only. Anyone who can edit it can see the key inside its script.</div>
     </Modal>
   )
 }

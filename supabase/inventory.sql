@@ -181,3 +181,36 @@ create policy inv_tx_insert on public.inv_transactions for insert to authenticat
       )
     )
   );
+
+-- ── 2026-11-07: Google Sheet sync keys (migration inventory_sheet_sync_keys) ──
+-- Used by supabase/functions/sheets-sync (verify_jwt off; it checks x-sync-key against these hashes)
+-- and public/empire-hub-sheet-sync.gs (the Apps Script that runs inside the Google Sheet).
+create table if not exists public.inv_sync_keys (
+  id uuid primary key default gen_random_uuid(),
+  label text not null default 'Google Sheet',
+  key_hash text not null unique,
+  key_hint text not null,
+  created_by uuid references public.employees(id) on delete set null,
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz,
+  revoked_at timestamptz
+);
+alter table public.inv_sync_keys enable row level security;
+revoke all on public.inv_sync_keys from anon;
+create policy inv_sync_keys_admin_select on public.inv_sync_keys for select to authenticated using (public.is_admin());
+create policy inv_sync_keys_admin_revoke on public.inv_sync_keys for update to authenticated using (public.is_admin()) with check (public.is_admin());
+
+create or replace function public.inv_create_sync_key(p_label text default 'Google Sheet') returns text
+language plpgsql security definer set search_path = '' as $$
+declare k text;
+begin
+  if not public.is_admin() then raise exception 'Only admins can create sync keys'; end if;
+  k := 'ehsync_' || encode(extensions.gen_random_bytes(24), 'hex');
+  insert into public.inv_sync_keys (label, key_hash, key_hint, created_by)
+  values (coalesce(nullif(trim(p_label), ''), 'Google Sheet'), encode(extensions.digest(k, 'sha256'), 'hex'), right(k, 4), auth.uid());
+  return k;
+end $$;
+revoke all on function public.inv_create_sync_key(text) from public, anon;
+grant execute on function public.inv_create_sync_key(text) to authenticated;
+grant execute on function public.inv_next_sku(text) to service_role;
+create extension if not exists pg_net;
