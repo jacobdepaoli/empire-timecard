@@ -5,6 +5,7 @@
 //   update_email    { id, email }              → { ok: true }
 //   set_access      { id, enabled }            → { ok: true }   (off = can't sign in; sessions end within the hour)
 //   set_admin       { id, is_admin }           → { ok: true }
+//   delete          { id }                     → { ok: true }   (only accounts with no work history)
 // The super admin can't turn off their own access or admin rights (no lockout).
 import { createClient } from "npm:@supabase/supabase-js@2"
 
@@ -132,6 +133,27 @@ Deno.serve(async (req) => {
       const t = await target(body.id); if (t.error) return json({ error: t.error }, 400)
       if (body.id === me.id) return json({ error: "You can't change your own admin rights." }, 400)
       await admin.from("employees").update({ is_admin: !!body.is_admin }).eq("id", body.id)
+      return json({ ok: true })
+    }
+
+    case "delete": {
+      // Permanent. Only for accounts with no work history: deleting a login also wipes their timecards,
+      // time off, and schedule (database cascades), so anyone with history gets "turn access off" instead.
+      const t = await target(body.id); if (t.error) return json({ error: t.error }, 400)
+      if (body.id === me.id) return json({ error: "You can't delete your own account." }, 400)
+      const count = async (table: string, col = "employee_id") => {
+        const { count } = await admin.from(table).select("id", { count: "exact", head: true }).eq(col, body.id)
+        return count || 0
+      }
+      const history = {
+        "time entries": await count("time_logs"), timecards: await count("timecards"), "T&M sheets": await count("tm_sheets"),
+        "inventory movements": await count("inv_transactions"), "job updates": await count("job_updates", "author_id"), messages: await count("messages", "author_id"),
+      }
+      const has = Object.entries(history).filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}`)
+      if (has.length) return json({ error: `${t.emp!.name} has ${has.join(", ")}. Deleting would erase payroll and job records, so turn their access off instead.` }, 400)
+      const { error } = await admin.auth.admin.deleteUser(body.id)   // employees row goes with it (cascade)
+      if (error) return json({ error: "Couldn't delete the account." }, 400)
+      await admin.from("employees").delete().eq("id", body.id)
       return json({ ok: true })
     }
 

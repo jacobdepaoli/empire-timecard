@@ -668,7 +668,7 @@ export function Jobs({ user, onOpenJob }) {
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <button style={s.btnSecondary} onClick={() => open(j)}>{onOpenJob ? "Updates" : "Notes"}</button>
-                {user.is_admin && <><button style={s.btnSecondary} onClick={() => { setForm({ ...j }); setModal("job") }}><Icon name="edit" size={14} /></button><button style={s.btnDanger} onClick={() => del(j.id)}><Icon name="trash" size={14} /></button></>}
+                {user.is_admin && <><button style={s.btnSecondary} onClick={() => { setForm({ ...j }); setModal("job") }}><Icon name="edit" size={14} /></button>{user.is_super && <button style={s.btnDanger} onClick={() => del(j.id)}><Icon name="trash" size={14} /></button>}</>}
               </div>
             </div>
           </div>
@@ -773,7 +773,7 @@ function CustomerModal({ cust, user, onClose, onSaved }) {
       )}
 
       <div style={{ display: "flex", gap: 10, justifyContent: "space-between", alignItems: "center", marginTop: 18, flexWrap: "wrap" }}>
-        <div>{admin && !isNew && <button style={s.btnDanger} onClick={del}><Icon name="trash" size={13} /> Delete</button>}</div>
+        <div>{user.is_super && !isNew && <button style={s.btnDanger} onClick={del}><Icon name="trash" size={13} /> Delete</button>}</div>
         <div style={{ display: "flex", gap: 10 }}>
           <button style={s.btnSecondary} onClick={onClose}>Close</button>
           {admin && <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 24px" }} onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</button>}
@@ -827,7 +827,7 @@ function TimeLogs({ user }) {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               {hasGps(l.location_cur_lat) || hasGps(l.location_in_lat) ? <a href={mapsLink(hasGps(l.location_cur_lat) ? l.location_cur_lat : l.location_in_lat, hasGps(l.location_cur_lat) ? l.location_cur_lng : l.location_in_lng)} target="_blank" rel="noreferrer" style={{ ...s.badge(GD, GSOFT), textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 3 }}><Icon name="pin" size={11} color={GD} />Map</a> : <span style={s.badge(MUTED, "#eef0ec")}>No GPS</span>}
-              {user.is_admin && <><button style={{ ...s.btnSecondary, padding: "8px 10px" }} onClick={() => setEdit({ ...l })}><Icon name="edit" size={13} /></button><button style={{ ...s.btnDanger, padding: "8px 10px" }} onClick={() => del(l.id)}><Icon name="trash" size={13} /></button></>}
+              {user.is_admin && <><button style={{ ...s.btnSecondary, padding: "8px 10px" }} onClick={() => setEdit({ ...l })}><Icon name="edit" size={13} /></button>{user.is_super && <button style={{ ...s.btnDanger, padding: "8px 10px" }} onClick={() => del(l.id)}><Icon name="trash" size={13} /></button>}</>}
             </div>
           </div>
         ))}
@@ -1265,7 +1265,7 @@ function NotificationCenter({ user }) {
   const unread = notifs.filter((n) => !n.read).length
   return (
     <div>
-      <div style={s.pageHeader}><div><div style={s.pageTitle}>Notifications</div><div style={s.pageSub}>{unread} unread</div></div><div style={{ display: "flex", gap: 8 }}>{unread > 0 && <button style={s.btnSecondary} onClick={markAll}>Mark all read</button>}{user.is_admin && notifs.length > 0 && <button style={s.btnDanger} onClick={clear}>Clear all</button>}</div></div>
+      <div style={s.pageHeader}><div><div style={s.pageTitle}>Notifications</div><div style={s.pageSub}>{unread} unread</div></div><div style={{ display: "flex", gap: 8 }}>{unread > 0 && <button style={s.btnSecondary} onClick={markAll}>Mark all read</button>}{user.is_super && notifs.length > 0 && <button style={s.btnDanger} onClick={clear}>Clear all</button>}</div></div>
       {notifs.length === 0 ? <div style={{ ...s.card, textAlign: "center", padding: 48, color: MUTED }}><Icon name="bell" size={30} color={BORDER} /><div style={{ marginTop: 12 }}>No notifications yet.</div></div>
         : notifs.map((n) => (
           <div key={n.id} style={{ ...s.card, marginBottom: 8, borderLeft: `3px solid ${n.read ? BORDER : G}`, opacity: n.read ? 0.7 : 1 }}>

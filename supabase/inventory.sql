@@ -240,3 +240,9 @@ alter table public.inv_categories add column if not exists subcategories jsonb n
 -- On hand was zeroed the same day for a fresh count (backup.inv_transactions_20261111).
 -- 2026-11-11 later (Jacob): XHHW aluminum trimmed to what's actually sold: kept #8, #6, #4, #2 Black
 --   (WIR-109, 118, 127, 136); the other 68 set active = false (kept, not deleted).
+
+-- ─── 2026-11-12 (Jacob): pricing (migration inventory_sell_price_markup) ───
+-- inv_items.unit_cost = Cost (what we pay the supply house); updated automatically by each receive with a paid amount.
+-- inv_items.sell_price = Sell (Depot price); inv_items.markup_pct = markup over cost, used when sell_price is blank.
+-- inv_effective_sell(item). inv_transactions.sell_price = sell price locked in at checkout (trigger inv_tx_prices sets
+-- cost + sell on every 'issue'; non-admins can't type prices). Trigger inv_tx_update_cost: receive → item cost. No tax.

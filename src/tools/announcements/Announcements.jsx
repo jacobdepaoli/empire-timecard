@@ -125,7 +125,7 @@ function AnnouncementCard({ a, user, crew, reads, commentCount, onConfirm, onEdi
             <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
               <button title={a.pinned ? "Unpin" : "Pin to top"} style={{ ...s.btnGhost, padding: 7 }} onClick={onPin}><Icon name="pinned" size={15} color={a.pinned ? WARN : MUTED} /></button>
               <button title="Edit" style={{ ...s.btnGhost, padding: 7 }} onClick={onEdit}><Icon name="edit" size={15} /></button>
-              <button title="Delete" style={{ ...s.btnGhost, padding: 7 }} onClick={onDelete}><Icon name="trash" size={15} color={DANGER} /></button>
+              {user.is_super && <button title="Delete" style={{ ...s.btnGhost, padding: 7 }} onClick={onDelete}><Icon name="trash" size={15} color={DANGER} /></button>}
             </div>
           )}
         </div>
@@ -188,7 +188,7 @@ function Comments({ a, user, onChange }) {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12 }}><strong style={{ color: INK }}>{c.author_name}</strong><span style={{ color: FAINT }}>{timeAgo(c.created_at)}</span></div>
             <div style={{ fontSize: 14, color: TEXT, whiteSpace: "pre-wrap", marginTop: 2 }}>{c.body}</div>
           </div>
-          {(c.author_id === user.id || user.is_admin) && <button title="Delete comment" style={{ ...s.btnGhost, padding: 4, alignSelf: "flex-start" }} onClick={() => del(c)}><Icon name="x" size={13} color={FAINT} /></button>}
+          {(c.author_id === user.id || user.is_super) && <button title="Delete comment" style={{ ...s.btnGhost, padding: 4, alignSelf: "flex-start" }} onClick={() => del(c)}><Icon name="x" size={13} color={FAINT} /></button>}
         </div>
       ))}
       <div style={{ display: "flex", gap: 8 }}>

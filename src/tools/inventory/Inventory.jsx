@@ -13,6 +13,7 @@ import Labels from "./Labels.jsx"
 import Manage from "./Manage.jsx"
 import useNarrow from "./useNarrow.js"
 import { describe, needsSize } from "./describe.js"
+import { sellOf, markupOf } from "./pricing.js"
 
 const TYPE_LABEL = { material: "Material", tool: "Tool", equipment: "Equipment", consumable: "Consumable", asset: "Asset" }
 const TYPE_COLOR = { material: G, tool: "#2f6fb0", equipment: "#8a5a1a", consumable: "#6a7a2a", asset: MUTED }
@@ -140,10 +141,10 @@ export default function Inventory({ user, route }) {
       {tab === "manage" && user.is_admin
         ? <Manage user={user} onChanged={load} />
         : tab === "reorder"
-        ? <ItemTable narrow={narrow} rows={reorder} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} empty="Nothing is below its reorder point. Nice." showMin />
+        ? <ItemTable admin={user.is_admin} narrow={narrow} rows={reorder} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} empty="Nothing is below its reorder point. Nice." showMin />
         : tab === "catalog"
         ? <Catalog narrow={narrow} items={items} cats={cats} subs={subs} onHand={onHandByItem} isAdmin={user.is_admin} onOpen={(it) => setModal({ kind: "item", item: it })} />
-        : <StockTab narrow={narrow} items={stocked} cats={cats} subs={subs} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} onImport={() => setModal({ kind: "import" })} isAdmin={user.is_admin} />}
+        : <StockTab admin={user.is_admin} narrow={narrow} items={stocked} cats={cats} subs={subs} onHand={onHandByItem} onOpen={(it) => setModal({ kind: "item", item: it })} onImport={() => setModal({ kind: "import" })} isAdmin={user.is_admin} />}
 
       {modal?.kind === "more" && (
         <Modal title="Inventory" onClose={() => setModal(null)} width={420}>
@@ -178,7 +179,7 @@ function Stat({ label, value, warn }) {
 }
 
 // ─── Stock tab ────────────────────────────────────────────────────────────────
-function StockTab({ narrow, items, cats: allCats, subs, onHand, onOpen, onImport, isAdmin }) {
+function StockTab({ admin, narrow, items, cats: allCats, subs, onHand, onOpen, onImport, isAdmin }) {
   const [q, setQ] = useState(""); const [cat, setCat] = useState(""); const [sub, setSub] = useState("")
   const cats = useMemo(() => allCats.filter((c) => items.some((i) => i.category === c)), [items, allCats])
   const subOpts = cat ? (subs[cat] || []).filter((x) => items.some((i) => i.category === cat && i.family === x)) : []
@@ -198,7 +199,7 @@ function StockTab({ narrow, items, cats: allCats, subs, onHand, onOpen, onImport
   return (
     <>
       <Filters q={q} setQ={setQ} cat={cat} setCat={(c) => { setCat(c); setSub("") }} cats={cats} sub={sub} setSub={setSub} subOpts={subOpts} />
-      <ItemTable narrow={narrow} rows={rows} onHand={onHand} onOpen={onOpen} empty="No items match that search." />
+      <ItemTable admin={admin} narrow={narrow} rows={rows} onHand={onHand} onOpen={onOpen} empty="No items match that search." />
     </>
   )
 }
@@ -224,7 +225,7 @@ function Filters({ q, setQ, cat, setCat, cats, sub, setSub, subOpts = [] }) {
   )
 }
 
-function ItemTable({ narrow, rows, onHand, onOpen, empty, showMin }) {
+function ItemTable({ admin, narrow, rows, onHand, onOpen, empty, showMin }) {
   if (rows.length === 0) return <div style={{ ...s.card, textAlign: "center", color: MUTED, padding: 30 }}>{empty}</div>
   if (narrow) return (
     <PhoneList rows={rows} onOpen={onOpen} right={(i) => {
@@ -244,8 +245,9 @@ function ItemTable({ narrow, rows, onHand, onOpen, empty, showMin }) {
             <th style={s.th}>Type</th>
             <th style={{ ...s.th, textAlign: "right" }}>On hand</th>
             {showMin && <th style={{ ...s.th, textAlign: "right" }}>Min</th>}
-            <th style={{ ...s.th, textAlign: "right" }}>Unit cost</th>
-            <th style={{ ...s.th, textAlign: "right" }}>Value</th>
+            {admin && <th style={{ ...s.th, textAlign: "right" }} title="What we pay (supply house)">Cost</th>}
+            <th style={{ ...s.th, textAlign: "right" }} title="Depot price">Sell</th>
+            {admin && <th style={{ ...s.th, textAlign: "right" }}>Value at cost</th>}
           </tr></thead>
           <tbody>
             {rows.map((i) => {
@@ -260,8 +262,9 @@ function ItemTable({ narrow, rows, onHand, onOpen, empty, showMin }) {
                   <td style={s.td}><span style={s.badge(TYPE_COLOR[i.type] || MUTED)}>{TYPE_LABEL[i.type] || i.type}</span></td>
                   <td style={{ ...s.td, textAlign: "right", fontWeight: 700, color: low ? WARN : TEXT }}>{fmtQty(oh)} {i.unit}{low && <div style={{ fontSize: 10, color: WARN, fontWeight: 700 }}>LOW</div>}</td>
                   {showMin && <td style={{ ...s.td, textAlign: "right", color: MUTED }}>{i.min_qty ?? "—"}</td>}
-                  <td style={{ ...s.td, textAlign: "right", color: MUTED }}>{i.unit_cost != null ? money(i.unit_cost) : "—"}</td>
-                  <td style={{ ...s.td, textAlign: "right", fontWeight: 600 }}>{i.unit_cost != null ? money(oh * Number(i.unit_cost)) : "—"}</td>
+                  {admin && <td style={{ ...s.td, textAlign: "right", color: MUTED }}>{i.unit_cost != null ? money(i.unit_cost) : "—"}</td>}
+                  <td style={{ ...s.td, textAlign: "right" }}>{sellOf(i) != null ? money(sellOf(i)) : "—"}{admin && markupOf(i) != null && <div style={{ fontSize: 10, color: FAINT }}>{markupOf(i)}% markup</div>}</td>
+                  {admin && <td style={{ ...s.td, textAlign: "right", fontWeight: 600 }}>{i.unit_cost != null ? money(oh * Number(i.unit_cost)) : "—"}</td>}
                 </tr>
               )
             })}
@@ -317,7 +320,7 @@ function Catalog({ narrow, items, cats: allCats, subs, onHand, isAdmin, onOpen }
           <table style={s.table}>
             <thead><tr>
               <th style={s.th}>Item</th><th style={s.th}>Subcategory</th><th style={s.th}>Size / config</th>
-              <th style={{ ...s.th, textAlign: "right" }}>Cost</th><th style={{ ...s.th, textAlign: "center" }}>Stocked</th>
+              {isAdmin && <th style={{ ...s.th, textAlign: "right" }}>Cost</th>}<th style={{ ...s.th, textAlign: "right" }}>Sell</th><th style={{ ...s.th, textAlign: "center" }}>Stocked</th>
             </tr></thead>
             <tbody>
               {rows.map((i) => (
@@ -325,7 +328,8 @@ function Catalog({ narrow, items, cats: allCats, subs, onHand, isAdmin, onOpen }
                   <td style={s.td}><div style={{ fontWeight: 700, color: INK }}>{describe(i)}</div><div style={{ fontSize: 11, color: FAINT }}>{i.category}</div></td>
                   <td style={{ ...s.td, color: MUTED }}>{i.family || "—"}</td>
                   <td style={{ ...s.td, color: MUTED }}>{[i.size_rating, i.configuration].filter(Boolean).join(" · ") || "—"}</td>
-                  <td style={{ ...s.td, textAlign: "right", color: MUTED }}>{i.unit_cost != null ? money(i.unit_cost) : "—"}</td>
+                  {isAdmin && <td style={{ ...s.td, textAlign: "right", color: MUTED }}>{i.unit_cost != null ? money(i.unit_cost) : "—"}</td>}
+                  <td style={{ ...s.td, textAlign: "right" }}>{sellOf(i) != null ? money(sellOf(i)) : "—"}</td>
                   <td style={{ ...s.td, textAlign: "center" }}>{i.stocked ? <span style={s.badge(G)}>{fmtQty(onHand[i.id] || 0)}</span> : <span style={{ color: FAINT }}>—</span>}</td>
                 </tr>
               ))}
@@ -353,7 +357,7 @@ function ItemModal({ item, cats, subs, user, stock, locName, locations, jobs, on
 
   const save = async () => {
     const patch = { name: f.name, category: f.category, family: f.family, size_rating: f.size_rating, configuration: f.configuration,
-      unit: f.unit, type: f.type, billable: f.billable, unit_cost: numOrNull(f.unit_cost), min_qty: numOrNull(f.min_qty),
+      unit: f.unit, type: f.type, billable: f.billable, unit_cost: numOrNull(f.unit_cost), sell_price: numOrNull(f.sell_price), markup_pct: numOrNull(f.markup_pct), min_qty: numOrNull(f.min_qty),
       mfr_part_number: f.mfr_part_number, barcode: f.barcode, notes: f.notes, stocked: f.stocked }
     const { error } = await supabase.from("inv_items").update(patch).eq("id", item.id)
     if (error) return alert(error.message)
@@ -374,7 +378,10 @@ function ItemModal({ item, cats, subs, user, stock, locName, locations, jobs, on
             <KV k="Category" v={item.category} /><KV k="Subcategory" v={item.family} />
             <KV k="Size / rating" v={item.size_rating} /><KV k="Configuration" v={item.configuration} />
             <KV k="Unit" v={item.unit} /><KV k="Mfr part #" v={item.mfr_part_number} />
-            <KV k="Unit cost" v={item.unit_cost != null ? money(item.unit_cost) : null} /><KV k="Reorder at" v={item.min_qty} />
+            {user.is_admin && <KV k="Cost (supply house)" v={item.unit_cost != null ? money(item.unit_cost) : null} />}
+            <KV k="Sell (Depot price)" v={sellOf(item) != null ? `${money(sellOf(item))}${item.sell_price == null && item.markup_pct != null ? ` (cost + ${item.markup_pct}%)` : ""}` : null} />
+            {user.is_admin && <KV k="Markup" v={markupOf(item) != null ? `${markupOf(item)}%` : null} />}
+            <KV k="Reorder at" v={item.min_qty} />
           </div>
           {item.notes && <div style={{ fontSize: 13, color: TEXT, background: PANEL, padding: "8px 12px", borderRadius: 8, marginBottom: 14 }}>{item.notes}</div>}
 
@@ -435,7 +442,9 @@ function ItemModal({ item, cats, subs, user, stock, locName, locations, jobs, on
                 {Object.keys(TYPE_LABEL).map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
               </select>
             </Field>
-            <Field label="Unit cost"><input style={s.input} type="number" step="0.01" value={f.unit_cost ?? ""} onChange={(e) => setF({ ...f, unit_cost: e.target.value })} /></Field>
+            <Field label="Cost (supply house)"><input style={s.input} type="number" step="0.01" value={f.unit_cost ?? ""} onChange={(e) => setF({ ...f, unit_cost: e.target.value })} /></Field>
+            <Field label="Sell (Depot price)"><input style={s.input} type="number" step="0.01" value={f.sell_price ?? ""} placeholder={(() => { const x = sellOf({ unit_cost: f.unit_cost, markup_pct: f.markup_pct }); return x != null ? x.toFixed(2) + " from markup" : "or use Markup %" })()} onChange={(e) => setF({ ...f, sell_price: e.target.value })} /></Field>
+            <Field label="Markup %"><input style={s.input} type="number" step="0.1" value={f.markup_pct ?? ""} placeholder={(() => { const m = markupOf({ unit_cost: f.unit_cost, sell_price: f.sell_price }); return m != null ? `${m}% now` : "used if Sell is blank" })()} onChange={(e) => setF({ ...f, markup_pct: e.target.value })} /></Field>
             <Field label="Reorder at (min qty)"><input style={s.input} type="number" step="any" value={f.min_qty ?? ""} onChange={(e) => setF({ ...f, min_qty: e.target.value })} /></Field>
             <Field label="Mfr part #"><input style={s.input} value={f.mfr_part_number || ""} onChange={(e) => setF({ ...f, mfr_part_number: e.target.value })} /></Field>
             <Field label="Barcode"><input style={s.input} value={f.barcode || ""} onChange={(e) => setF({ ...f, barcode: e.target.value })} /></Field>
@@ -486,7 +495,7 @@ function MoveModal({ mode, user, items, locations, jobs, onHand, stock, preItem,
     if (issue && !jobId) return setErr("Pick the job this is going to.")
     setBusy(true)
     const row = issue
-      ? { item_id: itemId, type: "issue", qty: n, from_location_id: fromLoc || null, job_id: jobId, employee_id: user.id, unit_cost: numOrNull(cost), note: note || null }
+      ? { item_id: itemId, type: "issue", qty: n, from_location_id: fromLoc || null, job_id: jobId, employee_id: user.id, note: note || null }   // cost + sell locked in by the database
       : { item_id: itemId, type: "receive", qty: n, to_location_id: toLoc || null, employee_id: user.id, unit_cost: numOrNull(cost), note: note || null }
     const { error } = await supabase.from("inv_transactions").insert(row)
     setBusy(false)
@@ -533,9 +542,12 @@ function MoveModal({ mode, user, items, locations, jobs, onHand, stock, preItem,
 
       <div style={s.grid2}>
         <Field label={`Quantity${item ? ` (${item.unit})` : ""}`}><input style={s.input} type="number" step="any" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="0" /></Field>
-        <Field label="Unit cost"><input style={s.input} type="number" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="optional" /></Field>
+        {issue
+          ? <Field label="Sells at"><div style={{ ...s.input, background: PANEL, color: MUTED }}>{item && sellOf(item) != null ? `${money(sellOf(item))} / ${item.unit}${Number(qty) > 0 ? ` · ${money(sellOf(item) * Number(qty))}` : ""}` : "No sell price set"}</div></Field>
+          : <Field label="Paid per unit (supply house)"><input style={s.input} type="number" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="0.00" /></Field>}
       </div>
-      <Field label="Note"><input style={s.input} value={note} onChange={(e) => setNote(e.target.value)} placeholder="optional" /></Field>
+      {!issue && Number(qty) > 0 && Number(cost) > 0 && <div style={{ fontSize: 12, color: MUTED, marginTop: -8, marginBottom: 10 }}>Paid total {money(Number(qty) * Number(cost))}. Saving updates the item's cost to {money(Number(cost))}.</div>}
+      <Field label="Note"><input style={s.input} value={note} onChange={(e) => setNote(e.target.value)} placeholder={issue ? "optional" : "optional, e.g. WEDCO invoice #"} /></Field>
       {issue && item?.billable && <div style={{ fontSize: 12, color: GD, background: GSOFT, padding: "8px 11px", borderRadius: 8, marginBottom: 12 }}>Billable material. It's logged against the job for the T&M sheet.</div>}
 
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>

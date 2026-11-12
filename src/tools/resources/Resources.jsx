@@ -71,7 +71,7 @@ export default function Resources({ user }) {
                 {user.is_admin ? (
                   <div style={{ display: "flex", gap: 2 }} onClick={(e) => e.stopPropagation()}>
                     <button title="Edit" style={{ ...s.btnGhost, padding: 6 }} onClick={() => setEdit(r)}><Icon name="edit" size={14} /></button>
-                    <button title="Remove" style={{ ...s.btnGhost, padding: 6 }} onClick={() => remove(r)}><Icon name="trash" size={14} color={DANGER} /></button>
+                    {user.is_super && <button title="Remove" style={{ ...s.btnGhost, padding: 6 }} onClick={() => remove(r)}><Icon name="trash" size={14} color={DANGER} /></button>}
                   </div>
                 ) : <Icon name="external" size={15} color={FAINT} />}
               </div>

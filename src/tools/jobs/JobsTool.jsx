@@ -135,7 +135,7 @@ function Composer({ user, jobId, onPosted }) {
 function Post({ p, user, urls, likes, comments, onOpenPhoto, onChange }) {
   const [showComments, setShowComments] = useState(comments.length > 0 && comments.length <= 2)
   const liked = likes.some((l) => l.employee_id === user.id)
-  const canDelete = p.author_id === user.id || user.is_admin
+  const canDelete = p.author_id === user.id || user.is_super
   const toggleLike = async () => {
     if (liked) await supabase.from("job_update_likes").delete().eq("update_id", p.id).eq("employee_id", user.id)
     else await supabase.from("job_update_likes").insert({ update_id: p.id, employee_id: user.id })
@@ -196,7 +196,7 @@ function CommentThread({ updateId, comments, user, onChange }) {
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, gap: 8 }}><strong style={{ color: INK }}>{c.author_name}</strong><span style={{ color: FAINT }}>{timeAgo(c.created_at)}</span></div>
             <div style={{ fontSize: 14, color: TEXT, whiteSpace: "pre-wrap" }}>{c.body}</div>
           </div>
-          {(c.author_id === user.id || user.is_admin) && <button title="Delete comment" style={{ ...s.btnGhost, padding: 4, alignSelf: "flex-start" }} onClick={() => del(c)}><Icon name="x" size={12} color={FAINT} /></button>}
+          {(c.author_id === user.id || user.is_super) && <button title="Delete comment" style={{ ...s.btnGhost, padding: 4, alignSelf: "flex-start" }} onClick={() => del(c)}><Icon name="x" size={12} color={FAINT} /></button>}
         </div>
       ))}
       <div style={{ display: "flex", gap: 8 }}>

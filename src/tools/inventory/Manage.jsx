@@ -7,9 +7,11 @@ import { Icon, Modal } from "../../ui.jsx"
 import { go } from "../../router.js"
 import useNarrow from "./useNarrow.js"
 import { describe, dupKey } from "./describe.js"
+import { sellOf, markupOf } from "./pricing.js"
 
 const TYPES = [["material", "Material"], ["tool", "Tool"], ["equipment", "Equipment"], ["consumable", "Consumable"], ["asset", "Asset"]]
 const PAGE = 150
+const NUMS = { unit_cost: "Cost", sell_price: "Sell price", markup_pct: "Markup %", min_qty: "Reorder at" }
 const CHANGED = "#FFF4CC"
 
 // SheetJS from its official CDN at runtime (same as the workbook importer), so it isn't bundled.
@@ -123,7 +125,7 @@ export default function Manage({ user, onChanged }) {
       try {
         for (const [f, v] of Object.entries(e)) {
           if (f === "_count") continue
-          if (f === "unit_cost" || f === "min_qty") { const n = num(v); if (Number.isNaN(n)) throw new Error(`${f === "unit_cost" ? "Unit cost" : "Reorder at"} must be a number`); patch[f] = n }
+          if (NUMS[f]) { const n = num(v); if (Number.isNaN(n)) throw new Error(`${NUMS[f]} must be a number`); patch[f] = n }
           else if (f === "active") patch[f] = !!v
           else patch[f] = typeof v === "string" ? (v.trim() || null) : v
         }
@@ -265,7 +267,9 @@ export default function Manage({ user, onChanged }) {
                     {pIn("Size / rating", "size_rating")}
                     {pIn("Unit", "unit")}
                     {pIn("Reorder at", "min_qty", { inputMode: "decimal" })}
-                    {pIn("Unit cost", "unit_cost", { inputMode: "decimal" })}
+                    {pIn("Cost (supply house)", "unit_cost", { inputMode: "decimal" })}
+                    {pIn("Sell (Depot price)", "sell_price", { inputMode: "decimal", placeholder: (() => { const x = sellOf({ unit_cost: val(it, "unit_cost"), markup_pct: val(it, "markup_pct") }); return x != null ? x.toFixed(2) : "" })() })}
+                    {pIn("Markup %", "markup_pct", { inputMode: "decimal", placeholder: (() => { const m = markupOf({ unit_cost: val(it, "unit_cost"), sell_price: val(it, "sell_price") }); return m != null ? String(m) : "" })() })}
                     <label><span style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>Type</span>
                       <select style={{ ...s.input, padding: "9px 10px", ...hl("type") }} value={val(it, "type")} onChange={(e) => setVal(it, "type", e.target.value)}>
                         {TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
@@ -288,16 +292,17 @@ export default function Manage({ user, onChanged }) {
             <th style={th}>SKU</th><th style={{ ...th, minWidth: 240 }}>Item</th><th style={{ ...th, minWidth: 190 }}>Category</th><th style={{ ...th, minWidth: 190 }}>Subcategory</th>
             <th style={th}>Size / rating</th><th style={th}>Unit</th><th style={th}>Type</th>
             <th style={{ ...th, textAlign: "right" }}>On hand · {locName}</th><th style={{ ...th, textAlign: "right" }}>Total</th>
-            <th style={{ ...th, textAlign: "right" }}>Reorder at</th><th style={{ ...th, textAlign: "right" }}>Unit cost</th>
+            <th style={{ ...th, textAlign: "right" }}>Reorder at</th><th style={{ ...th, textAlign: "right" }} title="What we pay (supply house)">Cost</th>
+            <th style={{ ...th, textAlign: "right" }} title="Depot price. Leave blank to use Markup %">Sell</th><th style={{ ...th, textAlign: "right" }} title="Used when Sell is blank">Markup %</th>
             <th style={th}>Bin / location</th><th style={th}>Active</th>
           </tr></thead>
           <tbody>
             {shown.map((it, idx) => {
               const c = val(it, "category")
               const bg = (f) => (isChanged(it, f) ? { background: CHANGED } : {})
-              const inp = (f, extra = {}) => (
-                <input data-cell={`${f}:${idx}`} onKeyDown={(e) => onKey(e, f, idx)} style={{ ...cell, ...bg(f), ...extra }} value={val(it, f)} onChange={(e) => setVal(it, f, e.target.value)} />
-              )
+              const inp = (f, extra = {}) => { const { placeholder, ...st } = extra; return (
+                <input data-cell={`${f}:${idx}`} onKeyDown={(e) => onKey(e, f, idx)} style={{ ...cell, ...bg(f), ...st }} placeholder={placeholder} value={val(it, f)} onChange={(e) => setVal(it, f, e.target.value)} />
+              ) }
               return (
                 <tr key={it.id} style={{ opacity: val(it, "active") ? 1 : 0.55, background: rowErr[it.id] ? "#FDECEA" : undefined }} title={rowErr[it.id] || ""}>
                   <td style={{ ...s.td, fontSize: 12, color: MUTED, whiteSpace: "nowrap" }}>{it.sku}{dupes.has(it.id) && <div style={{ color: WARN, fontWeight: 700, fontSize: 11 }}>Dupe?</div>}{rowErr[it.id] && <div style={{ color: DANGER, fontSize: 11, whiteSpace: "normal", maxWidth: 140 }}>{rowErr[it.id]}</div>}</td>
@@ -325,12 +330,14 @@ export default function Manage({ user, onChanged }) {
                   <td style={{ ...s.td, textAlign: "right", color: MUTED }}>{fmtQty(qtyTotal[it.id] || 0)}</td>
                   <td style={s.td}>{inp("min_qty", { width: 80, textAlign: "right" })}</td>
                   <td style={s.td}>{inp("unit_cost", { width: 90, textAlign: "right" })}</td>
+                  <td style={s.td}>{inp("sell_price", { width: 90, textAlign: "right", placeholder: (() => { const x = sellOf({ unit_cost: val(it, "unit_cost"), markup_pct: val(it, "markup_pct") }); return x != null ? x.toFixed(2) : "" })() })}</td>
+                  <td style={s.td}>{inp("markup_pct", { width: 70, textAlign: "right", placeholder: (() => { const m = markupOf({ unit_cost: val(it, "unit_cost"), sell_price: val(it, "sell_price") }); return m != null ? String(m) : "" })() })}</td>
                   <td style={s.td}>{inp("photo_location", { width: 170 })}</td>
                   <td style={{ ...s.td, textAlign: "center", ...bg("active") }}><input type="checkbox" checked={!!val(it, "active")} onChange={(e) => setVal(it, "active", e.target.checked)} /></td>
                 </tr>
               )
             })}
-            {rows.length === 0 && <tr><td colSpan={13} style={{ ...s.td, textAlign: "center", color: MUTED, padding: 30 }}>No items match.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={15} style={{ ...s.td, textAlign: "center", color: MUTED, padding: 30 }}>No items match.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -346,14 +353,14 @@ export default function Manage({ user, onChanged }) {
       )}
 
       {modal?.kind === "add" && <AddItemModal user={user} items={items} cats={cats} locations={locations} defaultLoc={countAt} onClose={() => setModal(null)} onDone={async () => { setModal(null); await load(); onChanged?.() }} />}
-      {modal?.kind === "cats" && <CategoriesModal cats={cats} items={items} onClose={() => setModal(null)} onChanged={async () => { await load(); onChanged?.() }} />}
+      {modal?.kind === "cats" && <CategoriesModal isSuper={!!user.is_super} cats={cats} items={items} onClose={() => setModal(null)} onChanged={async () => { await load(); onChanged?.() }} />}
     </div>
   )
 }
 
 // ─── Add item ────────────────────────────────────────────────────────────────
 function AddItemModal({ user, items = [], cats, locations, defaultLoc, onClose, onDone }) {
-  const [f, setF] = useState({ category: "", family: "", name: "", size_rating: "", configuration: "", unit: "each", type: "", unit_cost: "", min_qty: "", mfr_part_number: "", photo_location: "", notes: "", billable: null, qty: "", loc: defaultLoc })
+  const [f, setF] = useState({ category: "", family: "", name: "", size_rating: "", configuration: "", unit: "each", type: "", unit_cost: "", sell_price: "", markup_pct: "", min_qty: "", mfr_part_number: "", photo_location: "", notes: "", billable: null, qty: "", loc: defaultLoc })
   const [busy, setBusy] = useState(false); const [err, setErr] = useState(""); const [added, setAdded] = useState([]); const [finished, setFinished] = useState(false)
   const cat = cats.find((c) => c.name === f.category)
   const type = f.type || cat?.kind || "material"
@@ -364,8 +371,10 @@ function AddItemModal({ user, items = [], cats, locations, defaultLoc, onClose, 
     setErr("")
     if (!f.category) return setErr("Pick a category.")
     if (!f.name.trim()) return setErr("Add an item name.")
-    const cost = num(f.unit_cost), min = num(f.min_qty), qty = num(f.qty)
-    if (Number.isNaN(cost)) return setErr("Unit cost must be a number.")
+    const cost = num(f.unit_cost), min = num(f.min_qty), qty = num(f.qty), sell = num(f.sell_price), mk = num(f.markup_pct)
+    if (Number.isNaN(cost)) return setErr("Cost must be a number.")
+    if (Number.isNaN(sell)) return setErr("Sell price must be a number.")
+    if (Number.isNaN(mk)) return setErr("Markup % must be a number.")
     if (Number.isNaN(min)) return setErr("Reorder at must be a number.")
     if (Number.isNaN(qty) || (qty != null && qty < 0)) return setErr("Starting quantity must be 0 or more.")
     setBusy(true)
@@ -374,7 +383,7 @@ function AddItemModal({ user, items = [], cats, locations, defaultLoc, onClose, 
       const { data: sku, error: sErr } = await supabase.rpc("inv_next_sku", { p_category: f.category })
       if (sErr || !sku) { setBusy(false); return setErr("Couldn't assign a SKU. Try again.") }
       const row = { sku, category: f.category, family: f.family || null, name: f.name.trim(), size_rating: f.size_rating.trim() || null,
-        configuration: f.configuration.trim() || null, unit: f.unit.trim() || "each", type, billable, unit_cost: cost, min_qty: min,
+        configuration: f.configuration.trim() || null, unit: f.unit.trim() || "each", type, billable, unit_cost: cost, sell_price: sell, markup_pct: mk, min_qty: min,
         mfr_part_number: f.mfr_part_number.trim() || null, photo_location: f.photo_location.trim() || null, notes: f.notes.trim() || null, stocked: true, active: true }
       const { data, error } = await supabase.from("inv_items").insert(row).select("id,sku,name,size_rating,configuration").single()
       if (!error) made = data
@@ -387,7 +396,7 @@ function AddItemModal({ user, items = [], cats, locations, defaultLoc, onClose, 
     }
     setBusy(false)
     setAdded((a) => [made, ...a])
-    if (again) setF((p) => ({ ...p, name: "", size_rating: "", configuration: "", unit_cost: "", min_qty: "", mfr_part_number: "", notes: "", qty: "" }))
+    if (again) setF((p) => ({ ...p, name: "", size_rating: "", configuration: "", unit_cost: "", sell_price: "", markup_pct: "", min_qty: "", mfr_part_number: "", notes: "", qty: "" }))
     else setFinished(true)
   }
 
@@ -445,7 +454,9 @@ function AddItemModal({ user, items = [], cats, locations, defaultLoc, onClose, 
         {fld("Unit", "unit")}
         <div style={s.field}><label style={s.label}>Type</label>
           <select style={s.input} value={type} onChange={(e) => set("type", e.target.value)}>{TYPES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
-        {fld("Unit cost", "unit_cost", { inputMode: "decimal", placeholder: "0.00" })}
+        {fld("Cost (supply house)", "unit_cost", { inputMode: "decimal", placeholder: "0.00" })}
+        {fld("Sell (Depot price)", "sell_price", { inputMode: "decimal", placeholder: (() => { const x = sellOf({ unit_cost: f.unit_cost, markup_pct: f.markup_pct }); return x != null ? x.toFixed(2) : "or use Markup %" })() })}
+        {fld("Markup %", "markup_pct", { inputMode: "decimal", placeholder: (() => { const m = markupOf({ unit_cost: f.unit_cost, sell_price: f.sell_price }); return m != null ? String(m) : "e.g. 30" })() })}
         {fld("Reorder at (min qty)", "min_qty", { inputMode: "decimal" })}
         {fld("Mfr part #", "mfr_part_number")}
         {fld("Bin / location in shop", "photo_location")}
@@ -472,7 +483,7 @@ function AddItemModal({ user, items = [], cats, locations, defaultLoc, onClose, 
 }
 
 // ─── Categories & subcategories ─────────────────────────────────────────────
-function CategoriesModal({ cats, items, onClose, onChanged }) {
+function CategoriesModal({ isSuper, cats, items, onClose, onChanged }) {
   const [open, setOpen] = useState(""); const [err, setErr] = useState(""); const [busy, setBusy] = useState(false)
   const [renaming, setRenaming] = useState(null)   // { cat, sub?, value }
   const [newSub, setNewSub] = useState("")
@@ -547,7 +558,7 @@ function CategoriesModal({ cats, items, onClose, onChanged }) {
               <div style={{ padding: "6px 14px 14px 34px", background: PANEL }}>
                 <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
                   <button style={{ ...s.btnSecondary, padding: "6px 12px" }} onClick={() => setRenaming({ cat: c.name, value: c.name })}>Rename category</button>
-                  <button style={{ ...s.btnDanger, padding: "6px 12px" }} onClick={() => removeCat(c)} disabled={busy}>Delete category</button>
+                  {isSuper && <button style={{ ...s.btnDanger, padding: "6px 12px" }} onClick={() => removeCat(c)} disabled={busy}>Delete category</button>}
                 </div>
                 {(c.subcategories || []).map((x, i) => (
                   <div key={x} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 0", fontSize: 13 }}>
@@ -605,7 +616,8 @@ async function exportWorkbook({ items, everything, cats, stock, locations, catOr
     return {
       SKU: i.sku, Description: describe(i), Category: i.category, Subcategory: i.family || "", Item: i.name, "Size / rating": i.size_rating || "", Configuration: i.configuration || "",
       Unit: i.unit || "", Type: TYPES.find(([k]) => k === i.type)?.[1] || i.type, ...per, "On hand · Total": total,
-      "Reorder at": i.min_qty ?? "", "Unit cost": i.unit_cost ?? "", Value: i.unit_cost != null ? Math.round(total * Number(i.unit_cost) * 100) / 100 : "",
+      "Reorder at": i.min_qty ?? "", Cost: i.unit_cost ?? "", Sell: sellOf(i) ?? "", "Markup %": markupOf(i) ?? "",
+      "Value at cost": i.unit_cost != null ? Math.round(total * Number(i.unit_cost) * 100) / 100 : "", "Value at sell": sellOf(i) != null ? Math.round(total * sellOf(i) * 100) / 100 : "",
       "Mfr part #": i.mfr_part_number || "", "Bin / location": i.photo_location || "", Billable: i.billable ? "Yes" : "No", Active: i.active ? "Yes" : "No",
       Notes: i.notes || "", "Last edited": i.updated_at ? new Date(i.updated_at) : "",
     }
@@ -616,8 +628,8 @@ async function exportWorkbook({ items, everything, cats, stock, locations, catOr
   wsInv["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: invRows.length, c: head.length - 1 } }) }
   wsInv["!freeze"] = { xSplit: 0, ySplit: 1 }
   // money formats
-  const costCol = head.indexOf("Unit cost"), valCol = head.indexOf("Value")
-  for (let r = 1; r <= invRows.length; r++) for (const c of [costCol, valCol]) { const ref = XLSX.utils.encode_cell({ r, c }); if (wsInv[ref] && typeof wsInv[ref].v === "number") wsInv[ref].z = "$#,##0.00" }
+  const moneyCols = ["Cost", "Sell", "Value at cost", "Value at sell"].map((h) => head.indexOf(h))
+  for (let r = 1; r <= invRows.length; r++) for (const c of moneyCols) { const ref = XLSX.utils.encode_cell({ r, c }); if (wsInv[ref] && typeof wsInv[ref].v === "number") wsInv[ref].z = "$#,##0.00" }
 
   const catRows = cats.map((c) => ({ Category: c.name, Source: c.source, "SKU prefix": c.prefix, "Default type": TYPES.find(([k]) => k === c.kind)?.[1] || c.kind, Items: items.filter((i) => i.category === c.name).length, Subcategories: (c.subcategories || []).join("; ") }))
   const wsCat = XLSX.utils.json_to_sheet(catRows); wsCat["!cols"] = [{ wch: 40 }, { wch: 9 }, { wch: 10 }, { wch: 13 }, { wch: 7 }, { wch: 120 }]
@@ -626,10 +638,11 @@ async function exportWorkbook({ items, everything, cats, stock, locations, catOr
   const txRows = tx.map((t) => {
     const it = allItems.get(t.item_id) || byItem[t.item_id]
     return { Date: new Date(t.created_at), SKU: it?.sku || "", Item: it ? describe(it) : "(deleted item)", Movement: LABEL[t.type] || t.type, Qty: Number(t.qty),
-      From: locName[t.from_location_id] || "", To: locName[t.to_location_id] || "", Job: jobName[t.job_id] || "", By: empName[t.employee_id] || "", "Unit cost": t.unit_cost ?? "", Note: t.note || "" }
+      From: locName[t.from_location_id] || "", To: locName[t.to_location_id] || "", Job: jobName[t.job_id] || "", By: empName[t.employee_id] || "", "Cost / unit": t.unit_cost ?? "", "Paid total": t.type === "receive" && t.unit_cost != null ? Math.round(Number(t.qty) * Number(t.unit_cost) * 100) / 100 : "",
+      "Sell / unit": t.sell_price ?? "", "Sold total": t.type === "issue" && t.sell_price != null ? Math.round(Number(t.qty) * Number(t.sell_price) * 100) / 100 : "", Note: t.note || "" }
   })
   const wsTx = XLSX.utils.json_to_sheet(txRows.length ? txRows : [{ Date: "", SKU: "", Item: "No movements yet" }], { cellDates: true })
-  wsTx["!cols"] = [{ wch: 18 }, { wch: 10 }, { wch: 42 }, { wch: 18 }, { wch: 8 }, { wch: 16 }, { wch: 16 }, { wch: 30 }, { wch: 20 }, { wch: 10 }, { wch: 40 }]
+  wsTx["!cols"] = [{ wch: 18 }, { wch: 10 }, { wch: 42 }, { wch: 18 }, { wch: 8 }, { wch: 16 }, { wch: 16 }, { wch: 30 }, { wch: 20 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 40 }]
 
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, wsInv, "Inventory")

@@ -161,6 +161,19 @@ function UserModal({ u, me, onClose, onChanged }) {
               act("access", { action: "set_access", id: u.id, enabled: u.login_disabled }, u.login_disabled ? `${u.name} can sign in again.` : `${u.name}'s access is off.`)}>
             {busy === "access" ? "Saving…" : u.login_disabled ? "Turn access on" : "Turn access off"}</button>}
       </div>
+
+      {!self && (
+        <div style={row}>
+          {label("Delete account", "Permanent. Only for accounts with no time, T&M, inventory, or posting history; for anyone else, turn access off instead.")}
+          <button style={s.btnDanger} disabled={!!busy} onClick={async () => {
+            if (window.prompt(`Type DELETE to permanently remove ${u.name}'s account.`) !== "DELETE") return
+            setErr(""); setBusy("delete")
+            const r = await call({ action: "delete", id: u.id }); setBusy("")
+            if (r.error) return setErr(r.error)
+            await onChanged(); onClose()
+          }}>{busy === "delete" ? "Deleting…" : "Delete"}</button>
+        </div>
+      )}
     </Modal>
   )
 }

@@ -343,3 +343,9 @@ create policy emp_photos_delete on storage.objects for delete to authenticated
 -- the admin-users function (service role); is_admin and active change only by the super admin.
 -- admin-users function is super-admin-only: list, create, reset_password, update_email, set_access (ban/unban), set_admin.
 -- UI: Users & Logins tile (registry superOnly); TimeCard → Team login controls shown to the super admin only.
+
+-- ─── 2026-11-12: deletes are super-admin-only (migrations deletes_super_admin_only, storage_deletes_super_admin_only) ───
+-- Every admin DELETE policy now uses is_super(); admin ALL policies split into select/insert/update (is_admin) + delete (is_super).
+-- Kept: people deleting their own posts/comments/messages/likes; admins removing schedule entries.
+-- Storage deletes (employee photos, resources/announcement files, others' job photos): super only.
+-- admin-users function: + delete action (only accounts with no time/T&M/inventory/post/message history).

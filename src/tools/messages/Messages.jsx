@@ -142,7 +142,7 @@ function Conversation({ conv, user, height, wide, onRead }) {
         {msgs.length === 0 && <div style={{ textAlign: "center", color: FAINT, fontSize: 13, marginTop: 30 }}>No messages yet. Say hey 👋</div>}
         {rows.map((r) => r.divider
           ? <div key={r.key} style={{ textAlign: "center", margin: "14px 0 8px" }}><span style={{ fontSize: 11, fontWeight: 700, color: FAINT, background: "#FAFAF8", padding: "0 8px", letterSpacing: ".5px", textTransform: "uppercase" }}>{r.divider}</span></div>
-          : <Bubble key={r.m.id} m={r.m} grouped={r.grouped} mine={r.m.author_id === user.id} canDelete={r.m.author_id === user.id || user.is_admin} urls={urls} onDelete={() => del(r.m)} onPhoto={(i) => setViewer({ m: r.m, i })} />)}
+          : <Bubble key={r.m.id} m={r.m} grouped={r.grouped} mine={r.m.author_id === user.id} canDelete={r.m.author_id === user.id || user.is_super} urls={urls} onDelete={() => del(r.m)} onPhoto={(i) => setViewer({ m: r.m, i })} />)}
         <div ref={bottom} />
       </div>
 
