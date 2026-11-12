@@ -19,3 +19,4 @@ ios/App/Pods
 ios/App/output
 DerivedData
 .mobiletest/
+.docs/
