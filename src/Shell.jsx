@@ -86,7 +86,7 @@ export function Home({ user, onLogout }) {
   }, [user.id])
 
   const first = user.name.split(" ")[0]
-  const tools = TOOLS.filter((t) => !t.adminOnly || user.is_admin)
+  const tools = TOOLS.filter((t) => (!t.adminOnly || user.is_admin) && (!t.superOnly || user.is_super))
 
   return (
     <div style={{ minHeight: "100vh", background: BG }}>

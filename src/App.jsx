@@ -49,7 +49,7 @@ export default function App() {
   if (toolId === "i") return null
   if (toolId === "profile") return <ToolShell user={user} title="My Profile" icon="user"><MyProfile user={user} setUser={setUser} /></ToolShell>
 
-  const tool = TOOLS.find((t) => t.id === toolId && (!t.adminOnly || user.is_admin))
+  const tool = TOOLS.find((t) => t.id === toolId && (!t.adminOnly || user.is_admin) && (!t.superOnly || user.is_super))
   if (!tool) return <Home user={user} onLogout={logout} />
 
   const Tool = tool.component

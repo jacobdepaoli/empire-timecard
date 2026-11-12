@@ -236,7 +236,7 @@ export default function Manage({ user, onChanged }) {
                 <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, color: INK, fontSize: 14.5, lineHeight: 1.3 }}>{shownDesc(it)}{dupes.has(it.id) && <span style={{ ...s.badge(WARN), marginLeft: 6 }}>Dupe?</span>}</div>
-                    <div style={{ fontSize: 12, color: FAINT, marginTop: 2 }}>{[it.sku, val(it, "size_rating"), val(it, "family")].filter(Boolean).join(" · ")}</div>
+                    <div style={{ fontSize: 12, color: FAINT, marginTop: 2 }}>{[it.sku, val(it, "family")].filter(Boolean).join(" · ")}{/^verify$/i.test(val(it, "size_rating")) && <span style={{ color: WARN, fontWeight: 700 }}> · size?</span>}</div>
                     {rowErr[it.id] && <div style={{ color: DANGER, fontSize: 12, marginTop: 4 }}>{rowErr[it.id]}</div>}
                   </div>
                   <label style={{ width: 92, flexShrink: 0 }}>

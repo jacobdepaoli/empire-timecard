@@ -337,3 +337,9 @@ create policy emp_photos_update on storage.objects for update to authenticated
   using (bucket_id = 'employee-photos' and public.is_admin());
 create policy emp_photos_delete on storage.objects for delete to authenticated
   using (bucket_id = 'employee-photos' and public.is_admin());
+
+-- ─── 2026-11-12: super admin (migration super_admin_login_management) ────────
+-- employees.is_super (Jacob only). public.is_super(). Guard trigger: email/is_owner/is_super/id change only via
+-- the admin-users function (service role); is_admin and active change only by the super admin.
+-- admin-users function is super-admin-only: list, create, reset_password, update_email, set_access (ban/unban), set_admin.
+-- UI: Users & Logins tile (registry superOnly); TimeCard → Team login controls shown to the super admin only.

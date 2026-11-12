@@ -1085,7 +1085,7 @@ function Employees({ me }) {
     <div>
       <div style={s.pageHeader}>
         <div><div style={s.pageTitle}>Team</div><div style={s.pageSub}>{emps.filter((e) => e.active).length} active · {emps.length} total</div></div>
-        <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 18px", display: "flex", alignItems: "center", gap: 6 }} onClick={() => setEdit({ role: "Apprentice" })}><Icon name="plus" size={15} color="#fff" /> Add Member</button>
+        {me?.is_super && <button style={{ ...s.btnPrimary, width: "auto", padding: "10px 18px", display: "flex", alignItems: "center", gap: 6 }} onClick={() => setEdit({ role: "Apprentice" })}><Icon name="plus" size={15} color="#fff" /> Add Member</button>}
       </div>
       <input style={{ ...s.input, maxWidth: 300, marginBottom: 18 }} placeholder="Search team…" value={search} onChange={(e) => setSearch(e.target.value)} />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
@@ -1159,7 +1159,9 @@ function EmployeeModal({ emp, me, onClose, onSaved }) {
   }
   const toggleActive = async () => {
     if (emp.id === me?.id) return setErr("You can't deactivate your own account.")
-    await supabase.from("employees").update({ active: !f.active }).eq("id", emp.id); onSaved()
+    const res = await adminUsers({ action: "set_access", id: emp.id, enabled: !f.active })
+    if (res.error) return setErr(res.error)
+    onSaved()
   }
   const resetPw = async () => {
     if (!confirm(`Give ${f.name} a new temporary password? Their current password stops working.`)) return
@@ -1206,7 +1208,8 @@ function EmployeeModal({ emp, me, onClose, onSaved }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         {Field({ k: "name", label: "Full Name", ph: "John Smith" })}
-        {Field({ k: "email", label: "Email (login)", type: "email", ph: `john@${BRAND.emailDomain}` })}
+        {me?.is_super || isNew ? Field({ k: "email", label: "Email (login)", type: "email", ph: `john@${BRAND.emailDomain}` })
+          : <div style={{ ...s.field, marginBottom: 0 }}><label style={s.label}>Email (login)</label><input style={{ ...s.input, background: PANEL, color: MUTED }} value={f.email || ""} disabled title="Only the super admin can change logins" /></div>}
         {Field({ k: "phone", label: "Phone", type: "tel", ph: "(775) 555-0000" })}
         <div style={{ ...s.field, marginBottom: 0 }}>
           <label style={s.label}>Title</label>
@@ -1232,7 +1235,7 @@ function EmployeeModal({ emp, me, onClose, onSaved }) {
 
       {/* Toggles */}
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap", margin: "18px 0", padding: "14px 16px", background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 10 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600 }}><input type="checkbox" checked={f.is_admin || false} disabled={emp.id === me?.id} onChange={(e) => set("is_admin", e.target.checked)} /> Admin access</label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600 }}><input type="checkbox" checked={f.is_admin || false} disabled={emp.id === me?.id || !me?.is_super} onChange={(e) => set("is_admin", e.target.checked)} /> Admin access{!me?.is_super && <span style={{ fontWeight: 400, color: MUTED }}> (super admin only)</span>}</label>
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600 }}><input type="checkbox" checked={f.gps_required !== false} onChange={(e) => set("gps_required", e.target.checked)} /> Require GPS for clock-in</label>
       </div>
 
@@ -1240,8 +1243,8 @@ function EmployeeModal({ emp, me, onClose, onSaved }) {
 
       <div style={{ display: "flex", gap: 10, justifyContent: "space-between", alignItems: "center", marginTop: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: 8 }}>
-          {!isNew && <button style={s.btnSecondary} onClick={toggleActive}>{f.active ? "Deactivate" : "Activate"}</button>}
-          {!isNew && <button style={s.btnWarn} onClick={resetPw}>Reset Password</button>}
+          {!isNew && me?.is_super && <button style={s.btnSecondary} onClick={toggleActive}>{f.active ? "Deactivate" : "Activate"}</button>}
+          {!isNew && me?.is_super && <button style={s.btnWarn} onClick={resetPw}>Reset Password</button>}
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <button style={s.btnSecondary} onClick={onClose}>Cancel</button>
