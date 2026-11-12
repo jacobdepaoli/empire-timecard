@@ -48,10 +48,12 @@ const PRINT_CSS = `
 .lbl .sku { font-size: 6.5pt; font-weight: 800; line-height: 1; margin-top: 0; letter-spacing: .2px; }
 .lbl .nm { font-size: 4.6pt; line-height: 1.1; max-width: 0.92in; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media print {
-  @page { size: letter; margin: 0; }
+  @page { size: letter; margin: 0 !important; }
   html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
   #root { display: none !important; }
-  .eh-labels { display: block !important; }
+  /* The app's T&M print rule hides everything (body * { visibility: hidden }); the label sheet opts back in. */
+  .eh-labels, .eh-labels * { visibility: visible !important; }
+  .eh-labels { display: block !important; position: static !important; }
   .lbl-sheet { break-after: page; page-break-after: always; }
   .lbl-sheet:last-child { break-after: auto; page-break-after: auto; }
 }`
