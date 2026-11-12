@@ -228,3 +228,13 @@ alter table public.inv_categories add column if not exists subcategories jsonb n
 -- inv_rename_category(p_old, p_new): admin only; refuses a name already in use; updates inv_categories.name and inv_items.category.
 -- inv_rename_subcategory(p_category, p_old, p_new): admin only; renames in place in inv_categories.subcategories (order kept) and inv_items.family.
 -- Both: security definer, search_path '', execute granted to authenticated only.
+
+-- ─── 2026-11-11 (Jacob): building wire added, "Hook-Up Wire" renamed "Electrical Wire" ─────────
+-- Cables, Wires subcategories now: Electrical Wire, THHN (Copper); Electrical Wire, XHHW (Aluminum);
+--   NM-B Cable (Romex); MC Cable (Metal-Clad); Single Conductor Cables (Electrical Wire); Multiple Conductor
+--   Cables; Coaxial Cables (RF); Fiber Optic Cables.
+-- WIR-001..072  THHN copper  #18,#14,#12,#10,#8,#6,#4,#2 x Black,Red,Blue,Green,White,Grey,Brown,Orange,Yellow (ft)
+-- WIR-073..144  XHHW aluminum, same gauges x colors (ft)
+-- WIR-145..154  NM-B (Romex) 12/2,12/3,14/2,14/3,10/2,10/3,8/2,8/3,6/2,6/3 w/ ground (ft)
+-- WIR-155..164  MC, same sizes (ft)
+-- On hand was zeroed the same day for a fresh count (backup.inv_transactions_20261111).
