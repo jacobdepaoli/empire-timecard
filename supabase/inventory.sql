@@ -238,3 +238,5 @@ alter table public.inv_categories add column if not exists subcategories jsonb n
 -- WIR-145..154  NM-B (Romex) 12/2,12/3,14/2,14/3,10/2,10/3,8/2,8/3,6/2,6/3 w/ ground (ft)
 -- WIR-155..164  MC, same sizes (ft)
 -- On hand was zeroed the same day for a fresh count (backup.inv_transactions_20261111).
+-- 2026-11-11 later (Jacob): XHHW aluminum trimmed to what's actually sold: kept #8, #6, #4, #2 Black
+--   (WIR-109, 118, 127, 136); the other 68 set active = false (kept, not deleted).
