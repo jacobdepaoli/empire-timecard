@@ -12,6 +12,7 @@ import { go } from "../../router.js"
 import Labels from "./Labels.jsx"
 import Manage from "./Manage.jsx"
 import useNarrow from "./useNarrow.js"
+import { describe, needsSize } from "./describe.js"
 
 const TYPE_LABEL = { material: "Material", tool: "Tool", equipment: "Equipment", consumable: "Consumable", asset: "Asset" }
 const TYPE_COLOR = { material: G, tool: "#2f6fb0", equipment: "#8a5a1a", consumable: "#6a7a2a", asset: MUTED }
@@ -183,7 +184,7 @@ function StockTab({ narrow, items, cats: allCats, subs, onHand, onOpen, onImport
   const subOpts = cat ? (subs[cat] || []).filter((x) => items.some((i) => i.category === cat && i.family === x)) : []
   const rows = items.filter((i) =>
     (!cat || i.category === cat) && (!sub || i.family === sub) &&
-    (!q || `${i.sku} ${i.name} ${i.category} ${i.family || ""} ${i.mfr_part_number || ""}`.toLowerCase().includes(q.toLowerCase())))
+    (!q || `${i.sku} ${describe(i)} ${i.size_rating || ""} ${i.category} ${i.family || ""} ${i.mfr_part_number || ""}`.toLowerCase().includes(q.toLowerCase())))
 
   if (items.length === 0) return (
     <div style={{ ...s.card, textAlign: "center", padding: 44, color: MUTED }}>
@@ -253,8 +254,8 @@ function ItemTable({ narrow, rows, onHand, onOpen, empty, showMin }) {
               return (
                 <tr key={i.id} className="lift" style={{ cursor: "pointer" }} onClick={() => onOpen(i)}>
                   <td style={s.td}>
-                    <div style={{ fontWeight: 700, color: INK }}>{i.name}</div>
-                    <div style={{ fontSize: 11, color: FAINT }}>{i.sku}{i.size_rating ? ` · ${i.size_rating}` : ""}{i.family ? ` · ${i.family}` : ""}{i.category ? ` · ${i.category}` : ""}</div>
+                    <div style={{ fontWeight: 700, color: INK }}>{describe(i)}</div>
+                    <div style={{ fontSize: 11, color: FAINT }}>{i.sku}{needsSize(i) && <span style={{ color: WARN, fontWeight: 700 }}> · size?</span>}{i.family ? ` · ${i.family}` : ""}{i.category ? ` · ${i.category}` : ""}</div>
                   </td>
                   <td style={s.td}><span style={s.badge(TYPE_COLOR[i.type] || MUTED)}>{TYPE_LABEL[i.type] || i.type}</span></td>
                   <td style={{ ...s.td, textAlign: "right", fontWeight: 700, color: low ? WARN : TEXT }}>{fmtQty(oh)} {i.unit}{low && <div style={{ fontSize: 10, color: WARN, fontWeight: 700 }}>LOW</div>}</td>
@@ -281,8 +282,8 @@ function PhoneList({ rows, onOpen, right }) {
           <button key={i.id} onClick={() => onOpen(i)}
             style={{ display: "flex", width: "100%", alignItems: "center", gap: 10, padding: "11px 14px", background: "none", border: "none", borderTop: n ? `1px solid ${BG}` : "none", textAlign: "left", cursor: "pointer", color: TEXT }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, color: INK, fontSize: 14.5, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{i.name}</div>
-              <div style={{ fontSize: 12, color: FAINT, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[i.sku, i.size_rating, i.family].filter(Boolean).join(" · ")}</div>
+              <div style={{ fontWeight: 700, color: INK, fontSize: 14.5, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{describe(i)}</div>
+              <div style={{ fontSize: 12, color: FAINT, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{i.sku}{needsSize(i) && <span style={{ color: WARN, fontWeight: 700 }}> · size?</span>}{i.family ? ` · ${i.family}` : ""}</div>
             </div>
             <div style={{ textAlign: "right", flexShrink: 0, minWidth: 48 }}>{right(i)}</div>
           </button>
@@ -299,7 +300,7 @@ function Catalog({ narrow, items, cats: allCats, subs, onHand, isAdmin, onOpen }
   const cats = useMemo(() => allCats.filter((c) => items.some((i) => i.category === c)), [items, allCats])
   const rows = items.filter((i) =>
     (!cat || i.category === cat) && (!sub || i.family === sub) && (!onlyStocked || i.stocked) &&
-    (!q || `${i.sku} ${i.name} ${i.family || ""} ${i.size_rating || ""} ${i.configuration || ""}`.toLowerCase().includes(q.toLowerCase())))
+    (!q || `${i.sku} ${describe(i)} ${i.family || ""} ${i.size_rating || ""} ${i.configuration || ""}`.toLowerCase().includes(q.toLowerCase())))
     .slice(0, 400)
   return (
     <>
@@ -321,7 +322,7 @@ function Catalog({ narrow, items, cats: allCats, subs, onHand, isAdmin, onOpen }
             <tbody>
               {rows.map((i) => (
                 <tr key={i.id} className="lift" style={{ cursor: "pointer" }} onClick={() => onOpen(i)}>
-                  <td style={s.td}><div style={{ fontWeight: 700, color: INK }}>{i.name}</div><div style={{ fontSize: 11, color: FAINT }}>{i.category}</div></td>
+                  <td style={s.td}><div style={{ fontWeight: 700, color: INK }}>{describe(i)}</div><div style={{ fontSize: 11, color: FAINT }}>{i.category}</div></td>
                   <td style={{ ...s.td, color: MUTED }}>{i.family || "—"}</td>
                   <td style={{ ...s.td, color: MUTED }}>{[i.size_rating, i.configuration].filter(Boolean).join(" · ") || "—"}</td>
                   <td style={{ ...s.td, textAlign: "right", color: MUTED }}>{i.unit_cost != null ? money(i.unit_cost) : "—"}</td>
@@ -360,7 +361,7 @@ function ItemModal({ item, cats, subs, user, stock, locName, locations, jobs, on
   }
 
   return (
-    <Modal title={item.name} onClose={onClose} width={620}>
+    <Modal title={describe(item)} onClose={onClose} width={620}>
       {!edit ? (
         <>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
@@ -474,7 +475,7 @@ function MoveModal({ mode, user, items, locations, jobs, onHand, stock, preItem,
   useEffect(() => { if (shops.length && !fromLoc) setFromLoc(shops[0].id); if (shops.length && !toLoc) setToLoc(shops.find((l) => l.kind === "shop")?.id || shops[0].id) }, [locations])
   useEffect(() => { if (item && cost === "" && item.unit_cost != null) setCost(String(item.unit_cost)) }, [itemId])
 
-  const matches = q ? items.filter((i) => `${i.sku} ${i.name}`.toLowerCase().includes(q.toLowerCase())).slice(0, 8) : []
+  const matches = q ? items.filter((i) => `${i.sku} ${describe(i)} ${i.size_rating || ""}`.toLowerCase().includes(q.toLowerCase())).slice(0, 8) : []
   const avail = issue && item ? (stock.find((r) => r.item_id === item.id && r.location_id === fromLoc)?.qty || 0) : null
 
   const submit = async () => {
@@ -500,7 +501,7 @@ function MoveModal({ mode, user, items, locations, jobs, onHand, stock, preItem,
         <Field label="Item">
           {item ? (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", ...s.input }}>
-              <span><strong>{item.name}</strong> <span style={{ color: FAINT, fontSize: 12 }}>{item.sku}</span></span>
+              <span><strong>{describe(item)}</strong> <span style={{ color: FAINT, fontSize: 12 }}>{item.sku}</span></span>
               <button style={s.btnGhost} onClick={() => { setItemId(""); setQ("") }}><Icon name="x" size={14} /></button>
             </div>
           ) : (
@@ -510,7 +511,7 @@ function MoveModal({ mode, user, items, locations, jobs, onHand, stock, preItem,
                 <div style={{ border: `1px solid ${BORDER}`, borderRadius: 10, marginTop: 4, overflow: "hidden" }}>
                   {matches.map((m) => (
                     <div key={m.id} className="lift" onClick={() => { setItemId(m.id); setQ("") }} style={{ padding: "8px 11px", cursor: "pointer", borderBottom: `1px solid ${BG}`, fontSize: 13 }}>
-                      <strong>{m.name}</strong> <span style={{ color: FAINT }}>· {m.sku} · {fmtQty(onHand[m.id] || 0)} {m.unit}</span>
+                      <strong>{describe(m)}</strong> <span style={{ color: FAINT }}>· {m.sku} · {fmtQty(onHand[m.id] || 0)} {m.unit}</span>
                     </div>
                   ))}
                 </div>
@@ -569,7 +570,7 @@ function CountModal({ user, item, locations, stock, onClose, onDone }) {
     onDone()
   }
   return (
-    <Modal title={`Count · ${item.name}`} onClose={onClose} width={440}>
+    <Modal title={`Count · ${describe(item)}`} onClose={onClose} width={440}>
       {err && <div style={s.alert("error")}>{err}</div>}
       <Field label="Location"><select style={s.input} value={loc} onChange={(e) => setLoc(e.target.value)}>{shops.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></Field>
       <div style={{ fontSize: 13, color: MUTED, marginBottom: 10 }}>System shows <strong>{fmtQty(current)} {item.unit}</strong> here.</div>

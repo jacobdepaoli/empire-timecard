@@ -6,6 +6,7 @@ import { s, G, GD, GSOFT, INK, TEXT, MUTED, FAINT, BORDER, BG, PANEL, SURFACE, W
 import { Icon, Modal } from "../../ui.jsx"
 import { go } from "../../router.js"
 import useNarrow from "./useNarrow.js"
+import { describe, dupKey } from "./describe.js"
 
 const TYPES = [["material", "Material"], ["tool", "Tool"], ["equipment", "Equipment"], ["consumable", "Consumable"], ["asset", "Asset"]]
 const PAGE = 150
@@ -38,6 +39,7 @@ export default function Manage({ user, onChanged }) {
   const [countAt, setCountAt] = useState("")
   const [q, setQ] = useState(""); const [cat, setCat] = useState(""); const [sub, setSub] = useState("")
   const [showRetired, setShowRetired] = useState(false)
+  const [dupesOnly, setDupesOnly] = useState(false)
   const [limit, setLimit] = useState(PAGE)
   const [saving, setSaving] = useState(""); const [rowErr, setRowErr] = useState({})
   const [modal, setModal] = useState(null); const [exporting, setExporting] = useState(false)
@@ -95,13 +97,21 @@ export default function Manage({ user, onChanged }) {
     setCountAt(id)
   }
 
+  // Possible duplicates: active items whose full description matches another active item's.
+  const dupes = useMemo(() => {
+    const by = {}; items.filter((i) => i.active).forEach((i) => { const k = dupKey(i); (by[k] ||= []).push(i.id) })
+    const ids = new Set(); Object.values(by).forEach((list) => list.length > 1 && list.forEach((id) => ids.add(id)))
+    return ids
+  }, [items])
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase()
     return items
-      .filter((i) => (showRetired || i.active) && (!cat || i.category === cat) && (!sub || i.family === sub) &&
-        (!term || `${i.sku} ${i.name} ${i.family || ""} ${i.size_rating || ""} ${i.mfr_part_number || ""} ${i.photo_location || ""}`.toLowerCase().includes(term)))
-      .sort((a, b) => (catOrder[a.category] ?? 999) - (catOrder[b.category] ?? 999) || (a.family || "").localeCompare(b.family || "") || a.name.localeCompare(b.name))
-  }, [items, q, cat, sub, showRetired, catOrder])
+      .filter((i) => (showRetired || i.active) && (!dupesOnly || dupes.has(i.id)) && (!cat || i.category === cat) && (!sub || i.family === sub) &&
+        (!term || `${i.sku} ${describe(i)} ${i.size_rating || ""} ${i.family || ""} ${i.mfr_part_number || ""} ${i.photo_location || ""}`.toLowerCase().includes(term)))
+      .sort(dupesOnly ? (a, b) => dupKey(a).localeCompare(dupKey(b)) || a.sku.localeCompare(b.sku)
+        : (a, b) => (catOrder[a.category] ?? 999) - (catOrder[b.category] ?? 999) || (a.family || "").localeCompare(b.family || "") || describe(a).localeCompare(describe(b)))
+  }, [items, q, cat, sub, showRetired, dupesOnly, dupes, catOrder])
+  const shownDesc = (it) => describe({ ...it, name: val(it, "name"), size_rating: val(it, "size_rating"), configuration: it.configuration })
 
   const save = async () => {
     const ids = Object.keys(edits); if (!ids.length) return
@@ -200,6 +210,9 @@ export default function Manage({ user, onChanged }) {
         <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, color: MUTED, cursor: "pointer" }}>
           <input type="checkbox" checked={showRetired} onChange={(e) => { setShowRetired(e.target.checked); setLimit(PAGE) }} /> Show retired &amp; catalog
         </label>
+        <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, color: dupes.size ? WARN : MUTED, fontWeight: dupes.size ? 700 : 400, cursor: "pointer" }}>
+          <input type="checkbox" checked={dupesOnly} onChange={(e) => { setDupesOnly(e.target.checked); setLimit(PAGE) }} /> Possible duplicates ({dupes.size})
+        </label>
       </div>
       <div style={{ fontSize: 12, color: MUTED, marginBottom: 8 }}>
         {narrow
@@ -222,7 +235,7 @@ export default function Manage({ user, onChanged }) {
               <div key={it.id} style={{ background: rowErr[it.id] ? "#FDECEA" : SURFACE, border: `1px solid ${dirtyRow(it) ? "#E8C25A" : BORDER}`, borderRadius: 14, padding: "12px 12px 10px", opacity: val(it, "active") ? 1 : 0.6 }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, color: INK, fontSize: 14.5, lineHeight: 1.3 }}>{val(it, "name")}</div>
+                    <div style={{ fontWeight: 700, color: INK, fontSize: 14.5, lineHeight: 1.3 }}>{shownDesc(it)}{dupes.has(it.id) && <span style={{ ...s.badge(WARN), marginLeft: 6 }}>Dupe?</span>}</div>
                     <div style={{ fontSize: 12, color: FAINT, marginTop: 2 }}>{[it.sku, val(it, "size_rating"), val(it, "family")].filter(Boolean).join(" · ")}</div>
                     {rowErr[it.id] && <div style={{ color: DANGER, fontSize: 12, marginTop: 4 }}>{rowErr[it.id]}</div>}
                   </div>
@@ -287,8 +300,8 @@ export default function Manage({ user, onChanged }) {
               )
               return (
                 <tr key={it.id} style={{ opacity: val(it, "active") ? 1 : 0.55, background: rowErr[it.id] ? "#FDECEA" : undefined }} title={rowErr[it.id] || ""}>
-                  <td style={{ ...s.td, fontSize: 12, color: MUTED, whiteSpace: "nowrap" }}>{it.sku}{rowErr[it.id] && <div style={{ color: DANGER, fontSize: 11, whiteSpace: "normal", maxWidth: 140 }}>{rowErr[it.id]}</div>}</td>
-                  <td style={s.td}>{inp("name")}</td>
+                  <td style={{ ...s.td, fontSize: 12, color: MUTED, whiteSpace: "nowrap" }}>{it.sku}{dupes.has(it.id) && <div style={{ color: WARN, fontWeight: 700, fontSize: 11 }}>Dupe?</div>}{rowErr[it.id] && <div style={{ color: DANGER, fontSize: 11, whiteSpace: "normal", maxWidth: 140 }}>{rowErr[it.id]}</div>}</td>
+                  <td style={s.td}>{inp("name")}<div style={{ fontSize: 11, color: FAINT, marginTop: 3, whiteSpace: "normal", maxWidth: 300 }}>{shownDesc(it)}</div></td>
                   <td style={s.td}>
                     <select style={{ ...cell, ...bg("category") }} value={c} onChange={(e) => setVal(it, "category", e.target.value)}>
                       {!subsOf[c] && <option value={c}>{c || "Pick…"}</option>}
@@ -332,14 +345,14 @@ export default function Manage({ user, onChanged }) {
         </div>
       )}
 
-      {modal?.kind === "add" && <AddItemModal user={user} cats={cats} locations={locations} defaultLoc={countAt} onClose={() => setModal(null)} onDone={async () => { setModal(null); await load(); onChanged?.() }} />}
+      {modal?.kind === "add" && <AddItemModal user={user} items={items} cats={cats} locations={locations} defaultLoc={countAt} onClose={() => setModal(null)} onDone={async () => { setModal(null); await load(); onChanged?.() }} />}
       {modal?.kind === "cats" && <CategoriesModal cats={cats} items={items} onClose={() => setModal(null)} onChanged={async () => { await load(); onChanged?.() }} />}
     </div>
   )
 }
 
 // ─── Add item ────────────────────────────────────────────────────────────────
-function AddItemModal({ user, cats, locations, defaultLoc, onClose, onDone }) {
+function AddItemModal({ user, items = [], cats, locations, defaultLoc, onClose, onDone }) {
   const [f, setF] = useState({ category: "", family: "", name: "", size_rating: "", configuration: "", unit: "each", type: "", unit_cost: "", min_qty: "", mfr_part_number: "", photo_location: "", notes: "", billable: null, qty: "", loc: defaultLoc })
   const [busy, setBusy] = useState(false); const [err, setErr] = useState(""); const [added, setAdded] = useState([]); const [finished, setFinished] = useState(false)
   const cat = cats.find((c) => c.name === f.category)
@@ -363,7 +376,7 @@ function AddItemModal({ user, cats, locations, defaultLoc, onClose, onDone }) {
       const row = { sku, category: f.category, family: f.family || null, name: f.name.trim(), size_rating: f.size_rating.trim() || null,
         configuration: f.configuration.trim() || null, unit: f.unit.trim() || "each", type, billable, unit_cost: cost, min_qty: min,
         mfr_part_number: f.mfr_part_number.trim() || null, photo_location: f.photo_location.trim() || null, notes: f.notes.trim() || null, stocked: true, active: true }
-      const { data, error } = await supabase.from("inv_items").insert(row).select("id,sku,name").single()
+      const { data, error } = await supabase.from("inv_items").insert(row).select("id,sku,name,size_rating,configuration").single()
       if (!error) made = data
       else if (!/duplicate/i.test(error.message)) { setBusy(false); return setErr(error.message) }
     }
@@ -386,7 +399,7 @@ function AddItemModal({ user, cats, locations, defaultLoc, onClose, onDone }) {
         <div style={{ border: `1px solid ${BORDER}`, borderRadius: 12, marginBottom: 14 }}>
           {added.slice().reverse().map((a) => (
             <div key={a.id} style={{ display: "flex", gap: 10, padding: "9px 12px", borderBottom: `1px solid ${BG}`, fontSize: 14 }}>
-              <span style={{ color: MUTED, fontWeight: 700, minWidth: 74 }}>{a.sku}</span><span style={{ color: INK }}>{a.name}</span>
+              <span style={{ color: MUTED, fontWeight: 700, minWidth: 74 }}>{a.sku}</span><span style={{ color: INK }}>{describe(a)}</span>
             </div>
           ))}
         </div>
@@ -401,11 +414,18 @@ function AddItemModal({ user, cats, locations, defaultLoc, onClose, onDone }) {
     )
   }
 
+  // Live preview of how the item will read, plus a warning if it matches something already in inventory.
+  const preview = describe({ name: f.name, size_rating: f.size_rating, configuration: f.configuration })
+  const key = f.name.trim() ? dupKey({ name: f.name, size_rating: f.size_rating, configuration: f.configuration }) : ""
+  const exact = key ? items.filter((i) => i.active && dupKey(i) === key) : []
+  const words = f.name.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2)
+  const similar = !exact.length && words.length ? items.filter((i) => i.active && (!f.category || i.category === f.category) && words.every((w) => describe(i).toLowerCase().includes(w))).slice(0, 5) : []
+
   const fld = (label, k, props = {}) => <div style={s.field}><label style={s.label}>{label}</label><input style={s.input} value={f[k]} onChange={(e) => set(k, e.target.value)} {...props} /></div>
   return (
     <Modal title="Add item" onClose={added.length ? () => setFinished(true) : onClose} width={620}>
       {err && <div style={s.alert("error")}>{err}</div>}
-      {added.length > 0 && <div style={{ background: GSOFT, color: GD, borderRadius: 10, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>Added {added.map((a) => `${a.sku} ${a.name}`).join(" · ")}</div>}
+      {added.length > 0 && <div style={{ background: GSOFT, color: GD, borderRadius: 10, padding: "8px 12px", fontSize: 13, marginBottom: 12 }}>Added {added.map((a) => `${a.sku} ${describe(a)}`).join(" · ")}</div>}
       <div style={s.grid2}>
         <div style={s.field}><label style={s.label}>Category</label>
           <select style={s.input} value={f.category} onChange={(e) => set("category", e.target.value)} autoFocus>
@@ -420,7 +440,7 @@ function AddItemModal({ user, cats, locations, defaultLoc, onClose, onDone }) {
       </div>
       {fld("Item name (noun first, e.g. \"EMT Connector, Set-Screw\")", "name")}
       <div style={s.grid2}>
-        {fld("Size / rating", "size_rating", { placeholder: "e.g. 3/4 in., 20 A, 12 AWG" })}
+        {fld("Size / rating", "size_rating", { placeholder: 'e.g. 1/2", 20 A, #12 AWG' })}
         {fld("Configuration", "configuration", { placeholder: "e.g. Solid / Black" })}
         {fld("Unit", "unit")}
         <div style={s.field}><label style={s.label}>Type</label>
@@ -433,6 +453,13 @@ function AddItemModal({ user, cats, locations, defaultLoc, onClose, onDone }) {
         <div style={s.field}><label style={s.label}>Counted at</label>
           <select style={s.input} value={f.loc} onChange={(e) => set("loc", e.target.value)}>{locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
       </div>
+      {preview && (
+        <div style={{ background: exact.length ? WSOFT : PANEL, border: `1px solid ${exact.length ? WARN : BORDER}`, borderRadius: 10, padding: "9px 12px", fontSize: 13, marginBottom: 12 }}>
+          <div><span style={{ color: MUTED }}>Shows as:</span> <strong style={{ color: INK }}>{preview}</strong></div>
+          {exact.length > 0 && <div style={{ color: WARN, fontWeight: 700, marginTop: 4 }}>Already in inventory: {exact.map((i) => i.sku).join(", ")}. Use that item instead of adding a duplicate.</div>}
+          {similar.length > 0 && <div style={{ color: MUTED, marginTop: 4 }}>Similar: {similar.map((i) => `${i.sku} ${describe(i)}`).join(" · ")}</div>}
+        </div>
+      )}
       <label style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, marginBottom: 12 }}><input type="checkbox" checked={billable} onChange={(e) => set("billable", e.target.checked)} /> Billable to customer</label>
       <div style={s.field}><label style={s.label}>Notes</label><textarea style={s.textarea} value={f.notes} onChange={(e) => set("notes", e.target.value)} /></div>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
@@ -576,7 +603,7 @@ async function exportWorkbook({ items, everything, cats, stock, locations, catOr
     const per = Object.fromEntries(locations.map((l) => [l.name, at[i.id + "|" + l.id] || 0]))
     const total = stock.filter((r) => r.item_id === i.id).reduce((n, r) => n + Number(r.qty || 0), 0)
     return {
-      SKU: i.sku, Category: i.category, Subcategory: i.family || "", Item: i.name, "Size / rating": i.size_rating || "", Configuration: i.configuration || "",
+      SKU: i.sku, Description: describe(i), Category: i.category, Subcategory: i.family || "", Item: i.name, "Size / rating": i.size_rating || "", Configuration: i.configuration || "",
       Unit: i.unit || "", Type: TYPES.find(([k]) => k === i.type)?.[1] || i.type, ...per, "On hand · Total": total,
       "Reorder at": i.min_qty ?? "", "Unit cost": i.unit_cost ?? "", Value: i.unit_cost != null ? Math.round(total * Number(i.unit_cost) * 100) / 100 : "",
       "Mfr part #": i.mfr_part_number || "", "Bin / location": i.photo_location || "", Billable: i.billable ? "Yes" : "No", Active: i.active ? "Yes" : "No",
@@ -585,7 +612,7 @@ async function exportWorkbook({ items, everything, cats, stock, locations, catOr
   })
   const wsInv = XLSX.utils.json_to_sheet(invRows, { cellDates: true })
   const head = Object.keys(invRows[0] || { SKU: "" })
-  wsInv["!cols"] = head.map((h) => ({ wch: { Item: 42, Category: 30, Subcategory: 30, Notes: 50, "Bin / location": 24 }[h] || (locCols.includes(h) ? 12 : 14) }))
+  wsInv["!cols"] = head.map((h) => ({ wch: { Description: 46, Item: 42, Category: 30, Subcategory: 30, Notes: 50, "Bin / location": 24 }[h] || (locCols.includes(h) ? 12 : 14) }))
   wsInv["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: invRows.length, c: head.length - 1 } }) }
   wsInv["!freeze"] = { xSplit: 0, ySplit: 1 }
   // money formats
@@ -598,7 +625,7 @@ async function exportWorkbook({ items, everything, cats, stock, locations, catOr
   const LABEL = { receive: "Received", issue: "Checked out to job", transfer: "Transferred", return: "Returned", adjust: "Adjusted", count: "Count" }
   const txRows = tx.map((t) => {
     const it = allItems.get(t.item_id) || byItem[t.item_id]
-    return { Date: new Date(t.created_at), SKU: it?.sku || "", Item: it?.name || "(deleted item)", Movement: LABEL[t.type] || t.type, Qty: Number(t.qty),
+    return { Date: new Date(t.created_at), SKU: it?.sku || "", Item: it ? describe(it) : "(deleted item)", Movement: LABEL[t.type] || t.type, Qty: Number(t.qty),
       From: locName[t.from_location_id] || "", To: locName[t.to_location_id] || "", Job: jobName[t.job_id] || "", By: empName[t.employee_id] || "", "Unit cost": t.unit_cost ?? "", Note: t.note || "" }
   })
   const wsTx = XLSX.utils.json_to_sheet(txRows.length ? txRows : [{ Date: "", SKU: "", Item: "No movements yet" }], { cellDates: true })

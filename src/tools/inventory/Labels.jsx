@@ -3,6 +3,7 @@
 // ready to check out to a job. Print at 100% ("Actual size"), no margins scaling.
 import { useEffect, useMemo, useState } from "react"
 import { createPortal } from "react-dom"
+import { describe } from "./describe.js"
 import qrcode from "qrcode-generator"
 import { s, GD, GSOFT, INK, TEXT, MUTED, FAINT, BORDER, BG, PANEL } from "../../theme.js"
 import { Icon } from "../../ui.jsx"
@@ -34,7 +35,7 @@ function Label({ it }) {
     <div className="lbl">
       <QR text={itemLink(it.sku)} size="0.74in" />
       <div className="sku">{it.sku}</div>
-      <div className="nm">{it.name}</div>
+      <div className="nm">{describe(it)}</div>
     </div>
   )
 }
@@ -46,7 +47,7 @@ const PRINT_CSS = `
 .lbl { width: 1in; height: 1in; box-sizing: border-box; border: 0.5pt dashed #c9c9c9; display: flex; flex-direction: column;
   align-items: center; justify-content: flex-start; padding-top: 0.01in; overflow: hidden; font-family: Inter, Arial, sans-serif; color: #000; }
 .lbl .sku { font-size: 6.5pt; font-weight: 800; line-height: 1; margin-top: 0; letter-spacing: .2px; }
-.lbl .nm { font-size: 4.6pt; line-height: 1.1; max-width: 0.92in; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lbl .nm { font-size: 4.6pt; line-height: 1.08; max-width: 0.94in; max-height: 2.2em; text-align: center; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-word; }
 @media print {
   @page { size: letter; margin: 0 !important; }
   html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
@@ -65,7 +66,7 @@ export default function Labels({ items, cats, preselect = [] }) {
   useEffect(() => { const el = document.createElement("style"); el.textContent = PRINT_CSS; document.head.appendChild(el); return () => el.remove() }, [])
 
   const rows = items.filter((i) => (!cat || i.category === cat) &&
-    (!q || `${i.sku} ${i.name} ${i.family || ""}`.toLowerCase().includes(q.toLowerCase())))
+    (!q || `${i.sku} ${describe(i)} ${i.size_rating || ""} ${i.family || ""}`.toLowerCase().includes(q.toLowerCase())))
   const bySku = Object.fromEntries(items.map((i) => [i.sku, i]))
   const labels = [...Array(Math.max(0, Math.min(PER_SHEET, Number(start) || 1) - 1)).fill(null)]
   for (const [sku, n] of Object.entries(picked)) if (bySku[sku]) for (let k = 0; k < n; k++) labels.push(bySku[sku])
@@ -109,7 +110,7 @@ export default function Labels({ items, cats, preselect = [] }) {
             <div key={i.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: `1px solid ${BG}`, background: picked[i.sku] ? GSOFT : "#fff" }}>
               <input type="checkbox" checked={!!picked[i.sku]} onChange={() => toggle(i.sku)} />
               <div style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => toggle(i.sku)}>
-                <div style={{ fontWeight: 700, color: INK, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{i.name}</div>
+                <div style={{ fontWeight: 700, color: INK, fontSize: 13.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{describe(i)}</div>
                 <div style={{ fontSize: 11, color: FAINT }}>{i.sku}{i.family ? ` · ${i.family}` : ""}</div>
               </div>
               {picked[i.sku] && <input title="Copies" style={{ ...s.input, width: 56, padding: "6px 8px" }} type="number" min="1" max="80" value={picked[i.sku]} onChange={(e) => setCopies(i.sku, e.target.value)} />}
