@@ -42,6 +42,8 @@ export function ToolShell({ user, title, icon, children }) {
   )
 }
 
+// Candace's home screen gets a personal greeting (Jacob, 2026-11-13). Matched by her account id, so only she sees it.
+const CANDACE = "5194f67f-c4af-4df3-ab60-bbd035574e8a"
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening" }
 
 export function Home({ user, onLogout }) {
@@ -93,7 +95,7 @@ export function Home({ user, onLogout }) {
       <TopBar user={user} onLogout={onLogout}><Logo height={34} variant="dark" /></TopBar>
       <div style={{ background: `radial-gradient(700px 260px at 15% 0%, rgba(74,160,74,.22), transparent 70%), ${SIDE}`, paddingBottom: 54 }}>
         <div style={{ ...wrap, paddingTop: 18 }}>
-          <div style={{ color: "#fff", fontSize: "clamp(24px,5vw,32px)", fontWeight: 800, letterSpacing: "-.6px" }}>{greeting()}, {first}</div>
+          <div style={{ color: "#fff", fontSize: "clamp(24px,5vw,32px)", fontWeight: 800, letterSpacing: "-.6px" }}>{user.id === CANDACE ? "I love the shit out of you, Candace" : `${greeting()}, ${first}`}</div>
           <div style={{ color: SIDE_MUTED, fontSize: 14, marginTop: 4 }}>{new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div>
         </div>
       </div>
